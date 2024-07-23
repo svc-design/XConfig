@@ -33,8 +33,18 @@
 ansible-playbook  -i inventory gather_network_info.yml -e target_group=master
 ansible -i inventory all -m script -a 'roles/network_info/tasks/files/display_network_info.sh'
 
+
+ansible-playbook -i inventory/hosts/core playbooks/keycloak_server -D
+
+
+- Setup Wireguard Gateway: 
+
+``` ansible-playbook -i inventory/hosts/vpn playbooks/wireguard_gateway.yaml -D ```
+
+
 # all_in_one scripts
 
 - curl -sfL https://mirrors.onwalk.net/public/k3s_setup.sh | bash -
 
 https://www.henryxieblogs.com/2021/12/how-to-expose-kube-api-server-via-nginx.html
+

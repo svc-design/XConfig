@@ -1,19 +1,8 @@
-- name: setup harbor 
+---
+- name: deploy chartmuseum
   hosts: all
-  user: root
+  user: ubuntu
   become: yes
   gather_facts: yes
-  tasks:
-    - include_role:
-        name: chartmuseum
-      vars:
-        group: master
-        namespace: harbor
-        domain: onwalk.net
-        auto_issuance: true
-        update_secret: true
-        storage_type: oss
-        tls:
-          - secret_name: chartmuseum-tls
-            keyfile: /etc/ssl/onwalk.net.key
-            certfile: /etc/ssl/onwalk.net.pem
+  roles:
+    - chartmuseum

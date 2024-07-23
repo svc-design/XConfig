@@ -1,8 +1,7 @@
 ---
-- name: deploy vault server
-  hosts: all
+- hosts: all
   user: ubuntu
   become: yes
   gather_facts: yes
   roles:
-    - vault
+    - keycloak

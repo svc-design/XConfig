@@ -1,0 +1,25 @@
+- name: Install wireguard Packages
+  shell: "sudo mkdir -pv /etc/wireguard/ && \
+          sudo apt update                && \
+          sudo apt install wireguard-dkms wireguard-tools -y"
+  tags: wireguard
+
+- name: Set IP forward 
+  script: files/enable_ip_forward.sh 
+
+- name: Configure wireguard tunnel
+  template:
+    src: templates/server.conf
+    dest: "/etc/wireguard/{{ gateway.tunnel }}.conf"
+    owner: root
+    group: root
+  tags: wireguard
+
+- name: Stop Wireguard interface
+  shell: "sudo wg-quick down {{ gateway.tunnel }}"
+  ignore_errors: yes
+  tags: wireguard
+
+- name: Start Wireguard interface
+  shell: "sudo wg-quick up {{ gateway.tunnel }}"
+  tags: wireguard
