@@ -3,7 +3,7 @@ hw-node.svc.plus                  ansible_host=139.9.139.22     ansible_ssh_user
 cn-gateway.svc.plus               ansible_host=8.130.10.142     ansible_ssh_user=root
 us-gateway.svc.plus               ansible_host=52.196.108.28    ansible_ssh_user=ubuntu
 global-gateway.svc.plus           ansible_host=54.183.199.99    ansible_ssh_user=ubuntu
-canada-gateway.svc.plus           ansible_host=35.182.201.252   ansible_ssh_user=ubuntu
+canada-gateway.svc.plus           ansible_host=35.183.45.45     ansible_ssh_user=ubuntu
 
 [all:vars]
 ansible_port=22

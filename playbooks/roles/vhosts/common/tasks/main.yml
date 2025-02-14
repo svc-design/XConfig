@@ -1,10 +1,11 @@
 - name: Set timezone
-  include_tasks: tasks/set_timezone.yaml
-  when: enable_set_timezone
+  shell: "timedatectl set-timezone Asia/Shanghai"
 
 - name: Set hostname
-  include_tasks: tasks/set_hostname.yaml
-  when: enable_set_hostname
+  shell: "hostname -F /etc/hostname"
+
+- name: update /etc/hostname
+  template: src=templates/hostname dest=/etc/hostname owner=root group=root mode=0644 unsafe_writes=yes
 
 - name: Update /etc/hosts
   template: src=templates/hosts dest=/etc/hosts owner=root group=root mode=0644 force=yes unsafe_writes=yes
@@ -12,13 +13,9 @@
 - name: Run secure_ssh.sh script
   script: files/secure_ssh.sh
 
-- name: Configure logrotate and journald settings
-  include_tasks: configure_logrotate.yaml
-  when: rsyslog_log_rotation.enable
-
 - name: Install packages
   script: files/install-packages.sh
-  when: enable_install_packages and (ansible_facts['distribution'] == "Ubuntu") or (ansible_facts['distribution'] == "Debian")
+  when: (ansible_facts['distribution'] == "Ubuntu") or (ansible_facts['distribution'] == "Debian")
 
 #- name: Include GPU Configuration
 #  include_tasks: include_gpu.yaml
