@@ -5,53 +5,31 @@ on:
     paths:
       - '.github/workflows/ssl-cert-workflow.yml'
   workflow_dispatch:
-    inputs:
-      domain:
-        description: 'Domain Name (e.g., example.com)'
-        required: true
-        default: 'example.com'
-      valid_days:
-        description: 'Certificate Validity (Days)'
-        required: true
-        default: '365'
+    branches:
+      - main
 
 jobs:
   generate-cert:
     runs-on: ubuntu-latest
+    env:
+      DOMAIN: 'example.com'
+      VALID_DAYS: '365'
+      OUTPUT_DIR: "ssl_certificates"
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Ensure script is executable
+        run: chmod +x scripts/generate_ssl.sh
+
       - name: Generate Self-Signed Certificate
-        run: |
-          DOMAIN="${{ github.event.inputs.domain }}"
-          VALID_DAYS="${{ github.event.inputs.valid_days }}"
-
-          echo "Generating certificate for domain: $DOMAIN with validity: $VALID_DAYS days"
-
-          # 生成 CA 私钥
-          openssl genrsa -out ca.key 2048
-
-          # 生成 CA 证书
-          openssl req -x509 -new -nodes -key ca.key -sha256 -days $VALID_DAYS -out ca.cert -subj "/C=CN/ST=State/L=City/O=Company/OU=Org/CN=Custom-CA"
-
-          # 生成服务器私钥
-          openssl genrsa -out domain_ssl.key 2048
-
-          # 生成 CSR（证书签名请求）
-          openssl req -new -key domain_ssl.key -out domain_ssl.csr -subj "/C=CN/ST=State/L=City/O=Company/OU=Org/CN=$DOMAIN"
-
-          # 生成服务器证书
-          openssl x509 -req -in domain_ssl.csr -CA ca.cert -CAkey ca.key -CAcreateserial -out domain_ssl.cert -days $VALID_DAYS -sha256
-
-          # 清理 CSR 文件
-          rm -f domain_ssl.csr
+        run: scripts/generate_ssl.sh "$DOMAIN" "$VALID_DAYS" "$OUTPUT_DIR"
+        shell: bash
 
       - name: Package Certificates
         run: |
-          mkdir -p ssl_certificates
-          mv ca.cert ca.key domain_ssl.cert domain_ssl.key ssl_certificates/
-          tar -czvf ssl_certificates.tar.gz -C ssl_certificates .
+          tar -czvf ssl_certificates.tar.gz -C "$OUTPUT_DIR" .
 
       - name: Upload Certificates as Artifact
         uses: actions/upload-artifact@v4
@@ -66,5 +44,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="ssl-cert-${{ github.run_id }}"
-          gh release create "$TAG_NAME" ssl_certificates.tar.gz --title "SSL Certificates for ${{ github.event.inputs.domain }}" --notes "Generated SSL certificates for ${{ github.event.inputs.domain }} valid for ${{ github.event.inputs.valid_days }} days."
-        shell: bash
+          gh release create "$TAG_NAME" ssl_certificates.tar.gz --title "SSL Certificates for $DOMAIN" --notes "Generated SSL certificates for $DOMAIN valid for $VALID_DAYS days."
