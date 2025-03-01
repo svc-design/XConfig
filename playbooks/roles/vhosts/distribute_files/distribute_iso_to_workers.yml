@@ -1,0 +1,26 @@
+---
+- name: Distribute ISO file to all workers
+  hosts: worker
+  become: true  # 需要使用 sudo 权限
+  vars:
+    src_file: /mnt/iso/deepflow-docker-release-v6.5-246.iso  # 源文件路径
+    dest_file: /tmp/deepflow-docker-release-v6.5-246.iso     # 目标文件路径（同步文件路径）
+    final_dest: /mnt/iso/deepflow-docker-release-v6.5-246.iso  # 目标最终文件路径
+    remove_source_files: false  # 默认不开启删除源文件，设置为 true 可启用
+
+  tasks:
+
+    # 任务1: 同步 deepflow docker release ISO 文件并校验
+    - name: Synchronize deepflow docker release ISO with rsync
+      synchronize:
+        src: "{{ src_file }}"
+        dest: "{{ dest_file }}"
+        mode: push
+      register: sync_result  # 注册同步任务的结果
+
+
+    # 任务2: 使用 rsync 复制文件到最终目标目录并校验 (依赖任务组 1 的执行结果)
+    - name: Rsync ISO file from /tmp to /mnt/iso/
+      command: >
+        rsync -avz --checksum {% if remove_source_files %}--remove-source-files{% endif %} "{{ dest_file }}" "{{ final_dest }}"
+      when: sync_result is succeeded  # 只有当任务1 执行成功时才会执行
