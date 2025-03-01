@@ -7,22 +7,13 @@ on:
   workflow_dispatch:
     branches:
       - main
-    inputs:
-      domain:
-        description: 'Domain Name (e.g., example.com)'
-        required: true
-        default: 'example.com'
-      valid_days:
-        description: 'Certificate Validity (Days)'
-        required: true
-        default: '365'
 
 jobs:
   generate-cert:
     runs-on: ubuntu-latest
     env:
-      DOMAIN: ${{ inputs.domain }}
-      VALID_DAYS: ${{ inputs.valid_days }}
+      DOMAIN: 'kube.registry.local'
+      VALID_DAYS: '3650'
       OUTPUT_DIR: "ssl_certificates"
       tag_name: "ssl-cert-${{ github.run_id }}"
 
