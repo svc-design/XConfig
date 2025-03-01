@@ -7,14 +7,24 @@ on:
   workflow_dispatch:
     branches:
       - main
+    inputs:
+      domain:
+        description: 'Domain Name (e.g., example.com)'
+        required: true
+        default: 'example.com'
+      valid_days:
+        description: 'Certificate Validity (Days)'
+        required: true
+        default: '365'
 
 jobs:
   generate-cert:
     runs-on: ubuntu-latest
     env:
-      DOMAIN: 'example.com'
-      VALID_DAYS: '365'
+      DOMAIN: ${{ inputs.domain }}
+      VALID_DAYS: ${{ inputs.valid_days }}
       OUTPUT_DIR: "ssl_certificates"
+      tag_name: "ssl-cert-${{ github.run_id }}"
 
     steps:
       - name: Checkout Repository
@@ -22,6 +32,13 @@ jobs:
 
       - name: Ensure script is executable
         run: chmod +x scripts/generate_ssl.sh
+
+      - name: Debug Inputs
+        run: |
+          echo "Inputs received from workflow_dispatch:"
+          echo "DOMAIN: $DOMAIN"
+          echo "VALID_DAYS: $VALID_DAYS"
+          echo "TAG_NAME: $tag_name"
 
       - name: Generate Self-Signed Certificate
         run: scripts/generate_ssl.sh "$DOMAIN" "$VALID_DAYS" "$OUTPUT_DIR"
@@ -37,11 +54,21 @@ jobs:
           name: ssl-certificates
           path: ssl_certificates.tar.gz
 
-      - name: Create GitHub Release
+      - name: Create Release
         id: create_release
-        if: github.event_name == 'workflow_dispatch'
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ env.tag_name }}
+          release_name: "SSL Certificates for ${{ env.DOMAIN }}"
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG_NAME="ssl-cert-${{ github.run_id }}"
-          gh release create "$TAG_NAME" ssl_certificates.tar.gz --title "SSL Certificates for $DOMAIN" --notes "Generated SSL certificates for $DOMAIN valid for $VALID_DAYS days."
+
+      - name: Upload Certificates to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.tag_name }}
+          files: ssl_certificates.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
