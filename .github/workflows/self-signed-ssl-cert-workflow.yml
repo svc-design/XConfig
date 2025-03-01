@@ -3,7 +3,10 @@ name: Generate and Release Self-Signed SSL Certificates
 on:
   push:
     tags:
-      - "self-signed-ssl-*"
+      - "release-*"
+  pull_request:
+    paths:
+      - '.github/workflows/self-signed-ssl-cert-workflow.yml'
   workflow_dispatch:
     branches:
       - main
