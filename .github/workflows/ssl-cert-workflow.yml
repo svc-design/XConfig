@@ -1,0 +1,47 @@
+name: Generate and Release SSL Certificates
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ssl-cert-workflow.yml'
+  workflow_dispatch:
+    branches:
+      - main
+
+jobs:
+  generate-cert:
+    runs-on: ubuntu-latest
+    env:
+      DOMAIN: 'example.com'
+      VALID_DAYS: '365'
+      OUTPUT_DIR: "ssl_certificates"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Ensure script is executable
+        run: chmod +x scripts/generate_ssl.sh
+
+      - name: Generate Self-Signed Certificate
+        run: scripts/generate_ssl.sh "$DOMAIN" "$VALID_DAYS" "$OUTPUT_DIR"
+        shell: bash
+
+      - name: Package Certificates
+        run: |
+          tar -czvf ssl_certificates.tar.gz -C "$OUTPUT_DIR" .
+
+      - name: Upload Certificates as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssl-certificates
+          path: ssl_certificates.tar.gz
+
+      - name: Create GitHub Release
+        id: create_release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="ssl-cert-${{ github.run_id }}"
+          gh release create "$TAG_NAME" ssl_certificates.tar.gz --title "SSL Certificates for $DOMAIN" --notes "Generated SSL certificates for $DOMAIN valid for $VALID_DAYS days."
