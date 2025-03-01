@@ -1,9 +1,9 @@
 name: Generate and Release Self-Signed SSL Certificates
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/self-signed-ssl-cert-workflow.yml'
+  push:
+    tags:
+      - "self-signed-ssl-*"
   workflow_dispatch:
     branches:
       - main
@@ -15,7 +15,7 @@ jobs:
       DOMAIN: "kube.registry.local"
       VALID_DAYS: "3650"
       OUTPUT_DIR: "ssl_certificates"
-      tag_name: "self-signed-ssl-cert-${{ github.run_id }}"
+      tag_name: ${{ github.ref_name }}
 
     steps:
       - name: Checkout Repository
@@ -26,7 +26,7 @@ jobs:
 
       - name: Debug Inputs
         run: |
-          echo "Inputs received from workflow_dispatch:"
+          echo "Inputs received from GitHub Actions:"
           echo "DOMAIN: $DOMAIN"
           echo "VALID_DAYS: $VALID_DAYS"
           echo "TAG_NAME: $tag_name"
@@ -45,8 +45,9 @@ jobs:
           name: self-signed-ssl-certificates
           path: ssl_certificates.tar.gz
 
-      - name: Create GitHub Release for Self-Signed SSL Certificates
-        uses: softprops/action-gh-release@v1
+      - name: Release Self-Signed SSL Certificates
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           tag_name: ${{ env.tag_name }}
           name: "Self-Signed SSL Certificates for ${{ env.DOMAIN }}"
