@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Generate Self-Signed Certificate
         run: |
@@ -54,7 +54,7 @@ jobs:
           tar -czvf ssl_certificates.tar.gz -C ssl_certificates .
 
       - name: Upload Certificates as Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ssl-certificates
           path: ssl_certificates.tar.gz
@@ -62,22 +62,9 @@ jobs:
       - name: Create GitHub Release
         id: create_release
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: "ssl-cert-${{ github.run_id }}"
-          release_name: "SSL Certificates for ${{ github.event.inputs.domain }}"
-          draft: false
-          prerelease: false
-
-      - name: Upload Certificates to Release
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ssl_certificates.tar.gz
-          asset_name: ssl_certificates.tar.gz
-          asset_content_type: application/gzip
+        run: |
+          TAG_NAME="ssl-cert-${{ github.run_id }}"
+          gh release create "$TAG_NAME" ssl_certificates.tar.gz --title "SSL Certificates for ${{ github.event.inputs.domain }}" --notes "Generated SSL certificates for ${{ github.event.inputs.domain }} valid for ${{ github.event.inputs.valid_days }} days."
+        shell: bash
