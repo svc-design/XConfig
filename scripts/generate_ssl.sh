@@ -32,13 +32,37 @@ openssl req -x509 -new -nodes \
 # 3. 生成服务器私钥
 openssl genrsa -out "$OUTPUT_DIR/$KEY_FILE" 2048
 
-# 4. 生成带 SAN 的服务器 CSR
+# 4. 创建 OpenSSL 配置文件（兼容 Linux & macOS）
+SAN_CONFIG="$OUTPUT_DIR/san.cnf"
+cat <<EOF > "$SAN_CONFIG"
+[ req ]
+default_bits       = 2048
+prompt             = no
+default_md         = sha256
+req_extensions     = req_ext
+distinguished_name = dn
+
+[ dn ]
+C  = CN
+ST = State
+L  = City
+O  = Company
+OU = Org
+CN = $DOMAIN
+
+[ req_ext ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = $DOMAIN
+EOF
+
+# 5. 生成 CSR（证书签名请求）
 openssl req -new -key "$OUTPUT_DIR/$KEY_FILE" \
   -out "$OUTPUT_DIR/$DOMAIN.csr" \
-  -subj "/C=CN/ST=State/L=City/O=Company/OU=Org/CN=$DOMAIN" \
-  -addext "subjectAltName=DNS:$DOMAIN"
+  -config "$SAN_CONFIG"
 
-# 5. 用 CA 证书签发服务器证书，保留 SAN
+# 6. 用 CA 证书签发服务器证书，保留 SAN
 openssl x509 -req \
   -in "$OUTPUT_DIR/$DOMAIN.csr" \
   -CA "$OUTPUT_DIR/ca.cert" \
@@ -47,10 +71,9 @@ openssl x509 -req \
   -out "$OUTPUT_DIR/$CERT_FILE" \
   -days "$VALID_DAYS" \
   -sha256 \
-  -addext "subjectAltName=DNS:$DOMAIN"
+  -extensions req_ext -extfile "$SAN_CONFIG"
 
-# 6. 清理 CSR 文件
-rm -f "$OUTPUT_DIR/$DOMAIN.csr"
+# 7. 清理 CSR 和配置文件
+rm -f "$OUTPUT_DIR/$DOMAIN.csr" "$SAN_CONFIG"
 
-echo "Self-signed SSL certificate (with SAN) for $DOMAIN generated in $OUTPUT_DIR!"
-
+echo "✅ Self-signed SSL certificate (with SAN) for $DOMAIN generated in $OUTPUT_DIR!"
