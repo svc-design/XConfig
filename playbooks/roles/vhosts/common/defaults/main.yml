@@ -17,22 +17,22 @@ journald_log_rotation:          # 启用 journald 日志管理
   system_max_use: 1G            # 默认系统日志最大使用空间
   runtime_max_use: 500M         # 默认运行时日志最大使用空间
 
-config_temp:
-  k8s-node:
-    dns_servers:
-      - "8.8.8.8"
-      - "114.114.114.114"
-    swap_off: true
-    ip_forward: true
-    disk:
-      - name: /dev/sdb1
-        mount: /mnt
-      - name: /var/lib/containerd
-        mount: /mnt/lib/containerd
-        type: bind
-      - name: /var/log/deepflow
-        mount: /mnt/log/deepflow
-        type: bind
-    selinux_enable: false
-    ssh_auth:
-      key: /root/.ssh/id_rsa.pub
+    #config_temp:
+    #  k8s-node:
+    #    dns_servers:
+    #      - "8.8.8.8"
+    #      - "114.114.114.114"
+    #    swap_off: true
+    #    ip_forward: true
+    #    disk:
+    #      - name: /dev/sdb1
+    #        mount: /mnt
+    #      - name: /var/lib/containerd
+    #        mount: /mnt/lib/containerd
+    #        type: bind
+    #      - name: /var/log/deepflow
+    #        mount: /mnt/log/deepflow
+    #        type: bind
+    #    selinux_enable: false
+    #    ssh_auth:
+    #      key: /root/.ssh/id_rsa.pub

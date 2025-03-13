@@ -83,3 +83,8 @@ ansible-playbook -i inventory/hosts/vpn playbooks/wireguard_gateway.yaml -D
 - Set up Grafana Alloy
 
 ansible-playbook -i inventory/k3s-cluster playbooks/init_grafana_alloy -D -C -l cn-k3s-server.svc.plus -e @playbooks/roles/alloy/files/loki_journal_sources_k3s_server.yml -e "ansible_become_pass='xxxx'"
+
+
+- Setup VPN gateway
+
+ansible-playbook -i inventory/hosts/all playbooks/common -l gateway -D

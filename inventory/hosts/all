@@ -10,6 +10,9 @@ keycloak.svc.plus                 ansible_host=3.99.126.158     ansible_ssh_user
 observability.onwalk.net          ansible_host=54.153.80.120    ansible_ssh_user=ubuntu
 argocd.svc.plus                   ansible_host=13.57.247.27     ansible_ssh_user=ubuntu
 
+[gateway]
+vpn-gateway.svc.plus              ansible_host=167.179.72.223   ansible_ssh_user=root
+
 [all:vars]
 ansible_port=22
 ansible_ssh_private_key_file=~/.ssh/id_rsa
