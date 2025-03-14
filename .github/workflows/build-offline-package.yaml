@@ -1,0 +1,59 @@
+name: Build Offline Nginx Ingress Installer
+
+on:
+  push:
+    paths:
+      - 'scripts/ingress-installer.sh'
+      - '.github/workflows/build-offline-package.yaml'
+  workflow_dispatch:
+
+jobs:
+  build-offline-installer:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Prepare directories
+      run: |
+        mkdir -p offline-installer/{images,charts,scripts}
+
+    - name: Download nerdctl binary (official latest stable)
+      run: |
+        wget https://github.com/containerd/nerdctl/releases/download/v2.0.3/nerdctl-2.0.3-linux-amd64.tar.gz \
+          -O offline-installer/nerdctl.tar.gz
+
+    - name: Pull & export required images
+      run: |
+        docker pull nginx/nginx-ingress:2.4.0
+        docker pull registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20230407
+
+        docker save nginx/nginx-ingress:2.4.0 \
+          -o offline-installer/images/nginx-ingress.tar
+
+        docker save registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20230407 \
+          -o offline-installer/images/kube-webhook-certgen.tar
+
+    - name: Download Helm Chart (nginx-stable/nginx-ingress v0.15.0)
+      run: |
+        helm repo add nginx-stable https://helm.nginx.com/stable
+        helm repo update
+        helm pull nginx-stable/nginx-ingress \
+          --version=0.15.0 \
+          --untar --untardir offline-installer/charts
+
+    - name: Copy installer script
+      run: |
+        cp scripts/ingress-installer.sh offline-installer/scripts/
+        chmod +x offline-installer/scripts/ingress-installer.sh
+
+    - name: Package offline installer
+      run: |
+        cd offline-installer
+        tar czvf ../offline-setup-nginx-ingress.tar.gz ./
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: offline-setup-nginx-ingress
+        path: offline-setup-nginx-ingress.tar.gz
