@@ -126,6 +126,85 @@ EOF
   echo "✅ Cilium 安装完成"
 }
 
+setup_k3s_ingress() {
+  # 用法示例：
+  # setup_k3s_ingress "192.168.1.100" "ingress-gateway=true"
+  # 参数1（可选）：指定 ingress IP，默认为本地内网 IP
+  # 参数2（可选）：为当前节点添加的 label，如 ingress-gateway=true
+  local ingress_ip="$1"
+  local ingress_label="$2"
+
+  if [[ -z "$ingress_ip" ]]; then
+    ingress_ip=$(hostname -I | awk '{print $1}')
+  fi
+  local ingress_ip=$(hostname -I | awk '{print $1}')
+
+  cat > value.yaml <<EOF
+controller:
+  nginxplus: false
+  ingressClass: nginx
+  replicaCount: 2
+  service:
+    enabled: true
+    type: NodePort
+    externalIPs:
+      - $ingress_ip
+EOF
+
+  cat > nginx-cm.yaml <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-nginx-ingress
+  namespace: ingress
+  labels:
+    app.kubernetes.io/name: nginx-ingress
+    app.kubernetes.io/instance: nginx
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: 0.15.0
+data:
+  use-ssl-certificate-for-ingress: "false"
+  external-status-address: $ingress_ip
+  proxy-connect-timeout: 10s
+  proxy-read-timeout: 10s
+  client-header-buffer-size: 64k
+  client-body-buffer-size: 64k
+  client-max-body-size: 1000m
+  proxy-buffers: 8 32k
+  proxy-body-size: 1024m
+  proxy-buffer-size: 32k
+  proxy-connect-timeout: 10s
+  proxy-read-timeout: 10s
+EOF
+
+  cat > nginx-svc-patch.yaml <<EOF
+spec:
+  externalIPs:
+    - $ingress_ip
+EOF
+
+  helm repo add nginx-stable https://helm.nginx.com/stable || true
+  helm repo update
+  kubectl create namespace ingress || true
+  helm upgrade --install nginx nginx-stable/nginx-ingress \
+    --version=0.15.0 \
+    --namespace ingress \
+    -f value.yaml
+
+  kubectl apply -f nginx-cm.yaml
+  kubectl patch svc nginx-nginx-ingress -n ingress --patch-file nginx-svc-patch.yaml
+
+    if [[ -n "$ingress_label" ]]; then
+    kubectl label nodes --selector='kubernetes.io/hostname=$(hostname)' "$ingress_label" --overwrite || true
+    echo "📎 已设置节点标签: $ingress_label"
+  fi
+
+  echo "✅ NGINX Ingress Controller 安装完成，IP: $ingress_ip"
+}
+
+
+
 main() {
   [[ "$ROLE" =~ ^(init|server|agent|fixed)$ ]] || print_usage
   for arg in "$@"; do [[ "$arg" == "--with-cilium" ]] && INSTALL_CILIUM=true; done
@@ -196,3 +275,9 @@ main() {
 }
 
 main "$@"
+
+# 检查 helm 是否安装
+if ! command -v helm &>/dev/null; then
+  echo "⛔ Helm 未安装，正在自动安装..."
+  curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+fi
