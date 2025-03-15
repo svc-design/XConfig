@@ -77,35 +77,36 @@ jobs:
           name: offline-setup-nginx-ingress-${{ matrix.arch }}
           path: offline-test
 
-      - name: Setup Kind cluster
-        uses: engineerd/setup-kind@v0.5.0
-        with:
-          version: v0.20.0
+      - name: Setup K3s and KUBECONFIG for user
+        run: |
+          curl -sfL https://get.k3s.io | sudo sh -
+          # 配置当前用户的 kubeconfig
+          mkdir -p $HOME/.kube
+          sudo cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/config
+          sudo chown $USER:$USER $HOME/.kube/config
+          # 测试 kubectl 可用性（不需要 sudo）
+          kubectl get nodes
+          kubectl version
 
       - name: Install Helm
         run: |
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | sudo bash
 
       - name: Load offline installer package
         run: |
           cd offline-test
           tar -xzvf offline-setup-nginx-ingress-${{ matrix.arch }}.tar.gz
-          # 导入 nerdctl binary 到 /usr/local/bin（需要 sudo 权限，若 GitHub Action runner 无法使用 sudo，可跳过此步骤模拟安装）
           sudo tar xzvf nerdctl.tar.gz -C /usr/local/bin/
-          # 导入镜像
           docker load -i images/nginx-ingress.tar
           docker load -i images/kube-webhook-certgen.tar
           cd ..
 
-      - name: Run offline installer in Kind cluster
+      - name: Run offline installer in K3S cluster
         run: |
-          # 使用 Kind 集群上下文，执行离线安装脚本
           cd offline-test
-          # 这里假设使用默认 IP（Kind集群节点IP），可自定义传入参数
-          export KUBECONFIG="${HOME}/.kube/config"
-          kubectl get nodes
-          sudo bash scripts/ingress-installer.sh
-          sleep 30
+          bash scripts/ingress-installer.sh  # ❗不要用 sudo，除非你传入 KUBECONFIG
+          sleep 10
+          helm list -A
           kubectl -n ingress get pods
 
   publish-release:
