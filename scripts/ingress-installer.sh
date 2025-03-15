@@ -10,10 +10,45 @@ echo "🚀 Ingress离线部署开始，IP: ${INGRESS_IP}"
 echo "📦 安装nerdctl..."
 tar xzvf nerdctl.tar.gz -C /usr/local/bin/
 
-# 导入镜像
-echo "🚀 导入镜像到本地containerd..."
-nerdctl load -i images/nginx-ingress.tar
-nerdctl load -i images/kube-webhook-certgen.tar
+echo "🚀 尝试导入镜像..."
+
+if command -v docker &>/dev/null && docker info &>/dev/null; then
+  echo "✅ 检测到 Docker 正常运行，使用 docker load 导入镜像"
+  docker load -i images/nginx-ingress.tar
+  docker load -i images/kube-webhook-certgen.tar
+
+elif [ -S /run/k3s/containerd/containerd.sock ]; then
+  echo "⚠️ Docker 不可用，检测到 K3s 的 containerd socket，使用 nerdctl 导入"
+
+  # 设置 nerdctl 环境变量，连接到 K3s 的 containerd
+  export CONTAINERD_ADDRESS=/run/k3s/containerd/containerd.sock
+
+  # 确保 nerdctl 可执行
+  if ! command -v nerdctl &>/dev/null; then
+    echo "❌ nerdctl 未安装或未在 PATH 中，请检查"
+    exit 1
+  fi
+
+  nerdctl --namespace k8s.io load -i images/nginx-ingress.tar
+  nerdctl --namespace k8s.io load -i images/kube-webhook-certgen.tar
+
+elif [ -S /run/containerd/containerd.sock ]; then
+  echo "⚠️ Docker 和 K3s containerd 都不可用，退而使用默认 containerd socket"
+
+  export CONTAINERD_ADDRESS=/run/containerd/containerd.sock
+
+  if ! command -v nerdctl &>/dev/null; then
+    echo "❌ nerdctl 未安装或未在 PATH 中，请检查"
+    exit 1
+  fi
+
+  nerdctl --namespace k8s.io load -i images/nginx-ingress.tar
+  nerdctl --namespace k8s.io load -i images/kube-webhook-certgen.tar
+
+else
+  echo "❌ 没有可用的容器运行时（docker/containerd），无法导入镜像"
+  exit 1
+fi
 
 # 创建命名空间
 kubectl create namespace ingress || true
