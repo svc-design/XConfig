@@ -109,35 +109,44 @@ jobs:
           helm list -A
           kubectl -n ingress get pods
 
-  publish-release:
-    needs: test-offline-installer
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+publish-release:
+  needs: test-offline-installer
+  runs-on: ubuntu-latest
+  env:
+    tag_name: offline-nginx-ingress-${{ github.run_number }}
 
-      - name: Download all offline installer artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: offline-setup-nginx-ingress
-          path: release-artifacts
+  steps:
+    - uses: actions/checkout@v4
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: "offline-nginx-ingress-$(date +'%Y%m%d%H%M%S')"
-          release_name: "Offline NGINX Ingress Installer"
-          draft: false
-          prerelease: false
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      with:
+        tag_name: ${{ env.tag_name }}
+        release_name: Daily Build ${{ env.tag_name }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release-artifacts
-          asset_name: offline-setup-nginx-ingress.tar.gz
-          asset_content_type: application/gzip
+    - name: Download amd64 artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: offline-setup-nginx-ingress-amd64
+        path: release-artifacts
+
+    - name: Download arm64 artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: offline-setup-nginx-ingress-arm64
+        path: release-artifacts
+
+    - name: Upload offline installers to GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ env.tag_name }}
+        files: |
+          release-artifacts/offline-setup-nginx-ingress-amd64.tar.gz
+          release-artifacts/offline-setup-nginx-ingress-arm64.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
