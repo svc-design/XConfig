@@ -11,14 +11,26 @@ fi
 
 # 导入镜像
 echo "🚀 导入 pulp-operator 镜像..."
+
+IMAGES=(
+  "images/pulp-operator.tar"
+  "images/kube-rbac-proxy.tar"
+)
+
 if command -v docker &>/dev/null && docker info &>/dev/null; then
-  docker load -i images/pulp-operator.tar
+  for img in "${IMAGES[@]}"; do
+    docker load -i "$img"
+  done
 elif [ -S /run/k3s/containerd/containerd.sock ]; then
   export CONTAINERD_ADDRESS=/run/k3s/containerd/containerd.sock
-  nerdctl --namespace k8s.io load -i images/pulp-operator.tar
+  for img in "${IMAGES[@]}"; do
+    nerdctl --namespace k8s.io load -i "$img"
+  done
 elif [ -S /run/containerd/containerd.sock ]; then
   export CONTAINERD_ADDRESS=/run/containerd/containerd.sock
-  nerdctl --namespace k8s.io load -i images/pulp-operator.tar
+  for img in "${IMAGES[@]}"; do
+    nerdctl --namespace k8s.io load -i "$img"
+  done
 else
   echo "❌ 没有可用的容器运行时"
   exit 1
@@ -29,7 +41,7 @@ kubectl create namespace pulp || true
 
 # 安装 chart
 echo "📦 安装本地 Helm Chart..."
-helm upgrade --install pulp-operator ./charts/pulp-operator -n pulp --create-namespace
+helm upgrade --install pulp-operator ./charts/pulp-operator/ -n pulp
 
 # 等待 CRD 注册
 sleep 10
@@ -44,34 +56,61 @@ metadata:
   name: pulp
   namespace: pulp
 spec:
+  deployment_type: pulp
+  image_version: stable
+  image_web_version: 3.63.4
+  inhibit_version_constraint: true
+
+  ingress_type: ingress
+  ingress_host: artifacts.svc.plus
+  ingress_class_name: nginx
+  is_nginx_ingress: true
+
   api:
     replicas: 1
-    ingress:
-      enabled: true
-      tls:
-        enabled: true
-        secretName: pulp-tls-secret
   content:
     replicas: 1
   worker:
-    replicas: 2
-  plugins:
-    - pulp-container
-    - pulp-rpm
-    - pulp-deb
-    - pulp-helm
-    - pulp-file
-    - pulp-nuget
-  storage:
-    type: s3
-    s3:
-      bucket: pulp-repo-bucket
-      accessKeyID: <your-access-key>
-      secretAccessKey: <your-secret-key>
-      endpointURL: https://oss-cn-beijing.aliyuncs.com
-      region: cn-beijing
-      tls:
-        insecure: false
+    replicas: 1
+  web:
+    replicas: 1
+
+  migration_job:
+    container:
+      resource_requirements:
+        requests:
+          cpu: 250m
+        limits:
+          cpu: 500m
+
+  database:
+    postgres_storage_class: standard
+
+  file_storage_access_mode: "ReadWriteOnce"
+  file_storage_size: "2Gi"
+  file_storage_storage_class: standard
+
+  cache:
+    enabled: true
+    redis_storage_class: standard
+
+  pulp_settings:
+    api_root: "/pulp/"
+    allowed_export_paths:
+      - /tmp
+    allowed_import_paths:
+      - /tmp
+    telemetry: false
+    token_server: https://artifacts.svc.plus/token/
+    content_origin: https://artifacts.svc.plus
+    ansible_api_hostname: https://artifacts.svc.plus
+    installed_plugins:
+      - pulp_container
+      - pulp_rpm
+      - pulp_deb
+      - pulp_helm
+      - pulp_file
+      - pulp_nuget
 EOF
 
 # 应用 CR
@@ -79,4 +118,3 @@ echo "✅ 应用 Pulp CR"
 kubectl apply -f manifests/pulp-cr.yaml
 
 echo "🎉 Pulp 安装完成，查看状态：kubectl -n pulp get pods"
-

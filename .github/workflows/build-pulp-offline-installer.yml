@@ -28,8 +28,10 @@ jobs:
 
       - name: Pull & Save Image
         run: |
-          docker pull ghcr.io/pulp/pulp-operator:latest
-          docker save ghcr.io/pulp/pulp-operator:latest -o offline-pulp/images/pulp-operator.tar
+          docker pull quay.io/pulp/pulp-operator:v1.0.0-beta.5
+          docker save quay.io/pulp/pulp-operator:v1.0.0-beta.5 -o offline-pulp/images/pulp-operator.tar
+          docker pull gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0
+          docker save gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0 -o offline-pulp/images/kube-rbac-proxy.tar
 
       - name: Copy installer script
         run: |
