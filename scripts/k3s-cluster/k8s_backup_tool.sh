@@ -42,7 +42,7 @@ install_depend() {
   # 安装 velero
   if ! command -v velero >/dev/null 2>&1; then
     echo "❌ 缺少 velero，正在安装..."
-    curl -fsSL https://github.com/vmware-tanzu/velero/releases/latest/download/velero-linux-amd64.tar.gz -o velero.tar.gz
+    curl -fsSL https://github.com/vmware-tanzu/velero/releases/download/v1.15.2/velero-v1.15.2-linux-amd64.tar.gz -o velero.tar.gz
     tar -zxvf velero.tar.gz
     sudo mv velero*/velero /usr/local/bin/
     rm -rf velero* velero.tar.gz
