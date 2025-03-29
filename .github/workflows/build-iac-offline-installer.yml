@@ -37,9 +37,7 @@ jobs:
 
       - name: Package offline installer
         run: |
-          cd offline-iac
-          tar czvf ../offline-setup-iac-${{ matrix.arch }}.tar.gz ./
-          cd ..
+          tar czvf offline-setup-iac-${{ matrix.arch }}.tar.gz -C offline-iac .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -57,22 +55,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install dependencies for test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip python3-pip
+
       - name: Download offline installer artifact for ${{ matrix.arch }}
         uses: actions/download-artifact@v4
         with:
           name: offline-setup-iac-${{ matrix.arch }}
           path: offline-test
 
+      - name: List downloaded content
+        run: ls -lh offline-test/
+
       - name: Extract offline installer
         run: |
           cd offline-test
           tar -xzvf offline-setup-iac-${{ matrix.arch }}.tar.gz
           cd ..
-
-      - name: Install dependencies for test
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip python3-pip
 
       - name: Test offline installer
         run: |
