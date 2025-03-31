@@ -18,7 +18,7 @@ set -e
 : "${CERT_DIR:=/opt/registry/certs}"
 : "${CONFIG_DIR:=/opt/registry/config}"
 : "${REGISTRY_DATA:=/var/lib/registry}"
-: "${REGISTRY_YAML:=registry-config.yaml}"
+: "${REGISTRY_YAML:=registry.yaml}"
 : "${COMPOSE_YAML:=compose.yaml}"
 : "${TAR_FILE:=registry.tar}"
 
@@ -92,9 +92,10 @@ fi
 
 # ============ 生成 registry-config ============
 echo "⚙️ 准备 registry 配置..."
-sudo mkdir -p "$COMPOSE_DIR"
+sudo mkdir -pv "$CONFIG_DIR"
+sudo mkdir -pv "$REGISTRY_DATA"
 echo "📝 写入 registry-config.yaml..."
-sudo tee "$REGISTRY_CONFIG" > /dev/null <<EOF
+sudo cat > "${CONFIG_DIR}/${REGISTRY_YAML}" <<EOF
 version: 0.1
 log:
   fields:
@@ -107,12 +108,12 @@ storage:
   delete:
     enabled: true
 http:
-  addr: :5000
+  addr: :$REGISTRY_PORT
   headers:
     X-Content-Type-Options: [nosniff]
   tls:
-    certificate: ${CERT_DIR}/kube.registry.local.cert
-    key: ${CERT_DIR}/kube.registry.local.key
+    certificate: /etc/docker/registry/domain.crt
+    key: /etc/docker/registry/domain.key
 health:
   storagedriver:
     enabled: true
@@ -120,9 +121,54 @@ health:
     threshold: 3
 EOF
 
-sudo cp "$COMPOSE_YAML" "$CONFIG_DIR/compose.yaml"
-sudo mkdir -p "$REGISTRY_DATA"
 echo "✅ 写入完成: $REGISTRY_CONFIG"
+
+# ========== 生成 registry.yaml ==========
+echo "🛠️ 生成 registry 配置..."
+sudo mkdir -p "$CONFIG_DIR"
+cat <<EOF | sudo tee "${CONFIG_DIR}/registry.yaml" > /dev/null
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+  cache:
+    blobdescriptor: inmemory
+  filesystem:
+    rootdirectory: /var/lib/registry
+  delete:
+    enabled: true
+http:
+  addr: :${REGISTRY_PORT}
+  headers:
+    X-Content-Type-Options: [nosniff]
+  tls:
+    certificate: /etc/docker/registry/domain.crt
+    key: /etc/docker/registry/domain.key
+health:
+  storagedriver:
+    enabled: true
+    interval: 10s
+    threshold: 3
+EOF
+echo "✅ registry.yaml 已创建"
+
+# ========== 生成 compose.yaml ==========
+echo "🛠️ 生成 compose 配置..."
+cat <<EOF | sudo tee "${CONFIG_DIR}/compose.yaml" > /dev/null
+services:
+  registry:
+    image: hub.deepflow.yunshan.net/dev/registry:latest
+    container_name: registry
+    restart: always
+    network_mode: host
+    volumes:
+      - /var/lib/registry:/var/lib/registry
+      - ${CONFIG_DIR}/registry.yaml:/etc/docker/registry/config.yml
+      - ${CERT_DIR}/kube.registry.local.cert:/etc/docker/registry/domain.crt
+      - ${CERT_DIR}/kube.registry.local.key:/etc/docker/registry/domain.key
+EOF
+echo "✅ compose.yaml 已创建"
 
 # =============================================
 echo "📦 导入本地 registry 镜像..."
@@ -148,3 +194,48 @@ fi
 
 echo "✅ Registry 启动成功: https://$REGISTRY_DOMAIN:$REGISTRY_PORT"
 
+# =============================================
+echo "🔐 安装 CA 证书到系统信任目录..."
+
+CA_CERT="${CERT_DIR}/ca.cert"
+if [ ! -f "$CA_CERT" ]; then
+  echo "❌ 未找到 CA 证书: $CA_CERT"
+else
+  if grep -qi "ubuntu\|debian" /etc/os-release; then
+    sudo cp "$CA_CERT" "/usr/local/share/ca-certificates/kube-registry-ca.crt"
+    sudo update-ca-certificates
+    echo "✅ 已导入 CA 到 Ubuntu/Debian 系统信任目录"
+  elif grep -qi "rhel\|centos\|rocky" /etc/os-release; then
+    sudo cp "$CA_CERT" "/etc/pki/ca-trust/source/anchors/kube-registry-ca.crt"
+    sudo update-ca-trust extract
+    echo "✅ 已导入 CA 到 RHEL/CentOS 系统信任目录"
+  else
+    echo "⚠️ 未知发行版，跳过系统 CA 导入"
+  fi
+fi
+
+# =============================================
+echo "🐳 安装 CA 到容器运行时 (Docker/Containerd)..."
+
+# --- Docker CA ---
+if command -v docker &>/dev/null; then
+  echo "🔧 配置 Docker..."
+  DOCKER_CA_DIR="/etc/docker/certs.d/kube.registry.local"
+  sudo mkdir -p "$DOCKER_CA_DIR"
+  sudo cp "$CA_CERT" "${DOCKER_CA_DIR}/ca.crt"
+  echo "✅ 已导入 CA 到 Docker: $DOCKER_CA_DIR"
+  sudo systemctl restart docker
+fi
+
+# --- Containerd CA ---
+if command -v containerd &>/dev/null || [ -S "$CONTAINERD_SOCK" ]; then
+  echo "🔧 配置 Containerd..."
+
+  # Alpine/K3s: /etc/containerd/certs.d
+  # cri-o/nerdctl: /etc/containerd/certs.d/kube.registry.local/ca.crt
+  CONTAINERD_CA_DIR="/etc/containerd/certs.d/kube.registry.local"
+  sudo mkdir -p "$CONTAINERD_CA_DIR"
+  sudo cp "$CA_CERT" "${CONTAINERD_CA_DIR}/ca.crt"
+  echo "✅ 已导入 CA 到 Containerd: $CONTAINERD_CA_DIR"
+  sudo systemctl restart containerd || echo "⚠️ containerd 重启失败，可能在 K3s 中不适用"
+fi
