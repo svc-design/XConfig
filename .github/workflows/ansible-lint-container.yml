@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: artifact.onwalk.net/public/base/alpine-ansible-lint:latest
+      image: images.onwalk.net/public/base/alpine-ansible-ci-runner:0c09618
 
     steps:
       - name: Checkout code
