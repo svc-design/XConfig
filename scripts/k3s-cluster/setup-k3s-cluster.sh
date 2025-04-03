@@ -242,7 +242,7 @@ main() {
         --node-ip=${SERVER_NODE_IP} \
         --node-external-ip=${EGRESS_EXTERNAL_IP} \
         --advertise-address=${SERVER_NODE_IP}    \
-        --kube-apiserver-arg service-node-port-range=0-50000 \
+        --kube-apiserver-arg=service-node-port-range=0-50000 \
         ${SYSTEM_REGISTRY}"
 
       [[ -n "$FLANNEL_IFACE" ]] && INSTALL_K3S_EXEC+=" --flannel-iface=${FLANNEL_IFACE}"
