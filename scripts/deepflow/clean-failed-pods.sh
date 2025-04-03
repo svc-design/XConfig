@@ -1,4 +1,4 @@
-#!/bin/bash
+!/bin/bash
 # 脚本名称: clean-failed-pods.sh
 # 作用: 删除指定命名空间中非 Running 状态的 Pod
 

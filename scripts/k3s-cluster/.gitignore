@@ -9,3 +9,5 @@ sync.sh
 ../ca.srl
 ../kube.registry.local.cert
 ../kube.registry.local.key
+aws/
+awscliv2.zip

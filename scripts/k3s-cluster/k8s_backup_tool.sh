@@ -19,8 +19,21 @@ print_help() {
   echo ""
 }
 
-install_depend() {
-  echo "🔍 检查依赖项: jq, yq, velero"
+install_depends() {
+  echo "🔍 正在检查依赖项: jq, yq, velero, aws, rsync, tar"
+
+  # 安装 AWS CLI v2（仅限 x86_64 Linux）
+if ! command -v aws >/dev/null 2>&1; then
+  echo "📦 正在安装 AWS CLI v2..."
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+  sudo apt install -y unzip || true
+  unzip -q awscliv2.zip
+  sudo ./aws/install
+  rm -rf aws awscliv2.zip
+  echo "✅ AWS CLI 安装完成：$(aws --version)"
+else
+  echo "✅ AWS CLI 已安装：$(aws --version)"
+fi
 
   # 安装 jq
   if ! command -v jq >/dev/null 2>&1; then
@@ -42,7 +55,7 @@ install_depend() {
   # 安装 velero
   if ! command -v velero >/dev/null 2>&1; then
     echo "❌ 缺少 velero，正在安装..."
-    curl -fsSL https://github.com/vmware-tanzu/velero/releases/latest/download/velero-linux-amd64.tar.gz -o velero.tar.gz
+    curl -fsSL https://github.com/vmware-tanzu/velero/releases/download/v1.15.2/velero-v1.15.2-linux-amd64.tar.gz -o velero.tar.gz
     tar -zxvf velero.tar.gz
     sudo mv velero*/velero /usr/local/bin/
     rm -rf velero* velero.tar.gz
