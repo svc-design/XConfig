@@ -76,16 +76,20 @@ fi
 
 # =============================================
 echo "📦 解压 SSL 证书..."
-if [ -d "$CERT_DIR" ] && [ -f "${CERT_DIR}/kube.registry.local.cert" ]; then
-  echo "✅ 证书目录已存在: $CERT_DIR"
+
+if [ ! -f "ssl_certificates.tar.gz" ]; then
+  echo "⬇️ 未找到 ssl_certificates.tar.gz，尝试从 GitHub 下载..."
+  wget -O ssl_certificates.tar.gz \
+    "https://github.com/svc-design/ansible/releases/download/release-self-signed-cert_kube.registry.local/ssl_certificates.tar.gz" || {
+      echo "❌ 无法下载 ssl_certificates.tar.gz，终止执行"
+      exit 1
+    }
 else
   if [ -f "ssl_certificates.tar.gz" ]; then
     mkdir -p "$CERT_DIR"
     tar -xvpf ssl_certificates.tar.gz -C "$CERT_DIR"
     echo "✅ 证书已解压至: $CERT_DIR"
-  else
-    echo "⚠️ 未找到 ssl_certificates.tar.gz，跳过证书解压"
-  fi
+ fi
 fi
 
 # =============================================
@@ -158,7 +162,7 @@ echo "🛠️ 生成 compose 配置..."
 cat <<EOF | sudo tee "${CONFIG_DIR}/compose.yaml" > /dev/null
 services:
   registry:
-    image: hub.deepflow.yunshan.net/dev/registry:latest
+    image: registry:latest
     container_name: registry
     restart: always
     network_mode: host
@@ -173,15 +177,15 @@ echo "✅ compose.yaml 已创建"
 # =============================================
 echo "📦 导入本地 registry 镜像..."
 if [ -f "/usr/local/deepflow/$TAR_FILE" ]; then
-  sudo nerdctl --namespace $NERDCTL_NAMESPACE load -i "/usr/local/deepflow/$TAR_FILE"
+  sudo CONTAINERD_ADDRESS="$CONTAINERD_ADDRESS" nerdctl --namespace $NERDCTL_NAMESPACE load -i "/usr/local/deepflow/$TAR_FILE"
 else
   echo "⚠️ 本地镜像文件不存在：/usr/local/deepflow/$TAR_FILE"
 fi
 
 # =============================================
 echo "🔁 重启 registry 服务..."
-sudo nerdctl --namespace $NERDCTL_NAMESPACE compose -f "$CONFIG_DIR/compose.yaml" down || true
-sudo nerdctl --namespace $NERDCTL_NAMESPACE compose -f "$CONFIG_DIR/compose.yaml" up -d
+sudo CONTAINERD_ADDRESS="$CONTAINERD_ADDRESS" nerdctl --namespace $NERDCTL_NAMESPACE compose -f "$CONFIG_DIR/compose.yaml" down || true
+sudo CONTAINERD_ADDRESS="$CONTAINERD_ADDRESS" nerdctl --namespace $NERDCTL_NAMESPACE compose -f "$CONFIG_DIR/compose.yaml" up -d
 
 # =============================================
 echo "🔗 添加 hosts 映射..."
@@ -238,4 +242,19 @@ if command -v containerd &>/dev/null || [ -S "$CONTAINERD_SOCK" ]; then
   sudo cp "$CA_CERT" "${CONTAINERD_CA_DIR}/ca.crt"
   echo "✅ 已导入 CA 到 Containerd: $CONTAINERD_CA_DIR"
   sudo systemctl restart containerd || echo "⚠️ containerd 重启失败，可能在 K3s 中不适用"
+fi
+
+
+# --- K3s CA ---
+if [[ -S "/run/k3s/containerd/containerd.sock" ]]; then
+  echo "🔧 检测到 K3s 环境，准备导入 CA..."
+
+  K3S_CA_DIR="/etc/containerd/certs.d/${REGISTRY_DOMAIN}"
+  sudo mkdir -p "$K3S_CA_DIR"
+  sudo cp "$CA_CERT" "${K3S_CA_DIR}/ca.crt"
+
+  echo "✅ 已导入 CA 到 K3s containerd: $K3S_CA_DIR"
+
+  echo "🔁 重启 k3s..."
+  sudo systemctl restart k3s || echo "⚠️ K3s 重启失败，请手动确认"
 fi
