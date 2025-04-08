@@ -17,4 +17,4 @@ mkdir -p /usr/local/deepflow
 mount -o ro deepflow-docker-release-v6.5-242.iso /media
 
 rsync -av /media/* /usr/local/deepflow/
-rsync -av /usr/local/deepflow/registry/* /var/lib/registry/
+ln -sv /usr/local/deepflow/registry /var/lib/registry -f || rsync -av /usr/local/deepflow/registry/* /var/lib/registry/
