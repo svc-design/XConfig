@@ -238,7 +238,7 @@ main() {
       fi
 
       INSTALL_K3S_EXEC="server --disable=traefik,servicelb,local-storage \
-        --data-dir=/opt/rancher/k3s \
+        --data-dir=/mnt/opt/rancher/k3s \
         --node-ip=${SERVER_NODE_IP} \
         --node-external-ip=${EGRESS_EXTERNAL_IP} \
         --advertise-address=${SERVER_NODE_IP}    \
