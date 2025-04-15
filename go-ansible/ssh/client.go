@@ -1,8 +1,16 @@
 package ssh
 
-import "fmt"
+import (
+	"fmt"
+	"os/exec"
+)
 
-// Placeholder for SSH client connection logic
-func Connect() {
-    fmt.Println("Connecting via SSH...")
+func Ping(host string) error {
+	cmd := exec.Command("ping", "-c", "1", host)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ping failed: %s\n%s", err, output)
+	}
+	fmt.Printf("Ping to %s succeeded.\n", host)
+	return nil
 }
