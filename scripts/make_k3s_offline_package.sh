@@ -24,11 +24,13 @@ safe_copy() {
 }
 
 export_airgap_images() {
-
   local arch=$1
-  local ns="k8s.io"
-  local nerdctl=$(command -v nerdctl)
   local out="${BASE_DIR}/images/k3s-airgap-images-${arch}.tar"
+  local ns="k8s.io"
+
+  nerd() {
+    sudo nerdctl --namespace $ns --address /run/k3s/containerd/containerd.sock "$@"
+  }
 
   # ---- 核心镜像列表 ----
   local core_imgs=(
@@ -41,12 +43,12 @@ export_airgap_images() {
 
   echo "[INFO] 拉取核心镜像…"
   for img in "${core_imgs[@]}"; do
-    $nerdctl --address /run/k3s/containerd/containerd.sock -n $ns pull "$img"
+    nerd pull "$img"
   done
 
   echo "[INFO] 保存离线包 → $out"
   mkdir -p "$(dirname "$out")"
-  $nerdctl --address /run/k3s/containerd/containerd.sock -n $ns save -o "$out" "${core_imgs[@]}"
+  nerd save -o "$out" "${core_imgs[@]}"
 
   echo "[OK] 完成：$out 已生成"
 }
@@ -255,17 +257,27 @@ case "$ARCH" in
     ;;
 esac
 
-K3S_BIN="./bin/k3s-${ARCH}"
-K3S_INSTALL="./install/k3s-official-install.sh"
+# 路径定义
+BIN_DIR="./bin"
+K3S_BIN="${BIN_DIR}/k3s-${ARCH}"
+HELM_BIN="${BIN_DIR}/helm-${ARCH}"
+KUBECTL_BIN="${BIN_DIR}/kubectl-${ARCH}"
+NERDCTL_BIN="${BIN_DIR}/nerdctl-${ARCH}"
 
-echo "[INFO] 安装本地 K3s 二进制：${K3S_BIN}"
-cp "${K3S_BIN}" /usr/local/bin/k3s
-chmod +x /usr/local/bin/k3s
+echo "[INFO] 安装 CLI 工具（${ARCH}）到 /usr/local/bin"
 
-echo "[INFO] 准备 airgap 镜像"
-nerdctl             \
---namespace k8s.io  \
---address /run/k3s/containerd/containerd.sock load -i images/k3s-airgap-images-amd64.tar
+install_bin() {
+  local src=$1
+  local dst=$2
+  echo " ↳ $dst"
+  sudo cp "$src" "$dst"
+  sudo chmod +x "$dst"
+}
+
+install_bin "$K3S_BIN" /usr/local/bin/k3s
+install_bin "$HELM_BIN" /usr/local/bin/helm
+install_bin "$KUBECTL_BIN" /usr/local/bin/kubectl
+install_bin "$NERDCTL_BIN" /usr/local/bin/nerdctl
 
 echo "[INFO] 执行官方离线安装脚本"
 INSTALL_K3S_SKIP_DOWNLOAD=true \
@@ -273,14 +285,21 @@ INSTALL_K3S_EXEC="server \
   --write-kubeconfig-mode 644 \
   --disable=traefik,servicelb,local-storage \
   --kube-apiserver-arg=service-node-port-range=0-50000" \
-sh "${K3S_INSTALL}"
+bash "install/k3s-official-install.sh"
+
+echo "[INFO] 准备 airgap 镜像"
+sudo nerdctl             \
+--namespace k8s.io  \
+--address /run/k3s/containerd/containerd.sock load -i images/k3s-airgap-images-amd64.tar
 
 echo "[INFO] 等待 K3s 启动..."
 sleep 5
 
 echo "[INFO] 应用默认组件（如存在）"
-kubectl apply -f addons/node-exporter.yaml
-kubectl apply -f addons/kube-state-metrics.yaml
+mkdir -pv ~/.kube/
+cp -v /etc/rancher/k3s/k3s.yaml ~/.kube/config
+kubectl apply -f addons/node-exporter.yaml || true
+kubectl apply -f addons/kube-state-metrics.yaml || true
 
 echo "[SUCCESS] 离线 K3s 安装完成 ✅"
 EOF
@@ -292,10 +311,10 @@ cat > "${BASE_DIR}/README.md" <<EOF
 
 ## 📦 包含内容
 
-- ✅ **K3s 二进制**（v${VERSION}）
+- ✅ **K3s**（v${VERSION}）
 - ✅ **kubectl / helm CLI**
-- ✅ **nerdctl** v${NERDCTL_VERSION} CLI（可连接 K3s 内置 containerd）
 - ✅ **cni-plugins** v${CNI_VERSION}
+- ✅ **nerdctl** v${NERDCTL_VERSION} CLI（可连接 K3s 内置 containerd）
 - ✅ **airgap 镜像包** \`images/k3s-airgap-images-\${ARCH}.tar\`
   包含：
   - pause:3.6
@@ -327,7 +346,7 @@ scp -r k3s-offline-package/ user@remote:/opt/
 \`\`\`bash
 cd /opt/k3s-offline-package
 chmod +x install.sh
-sudo ./install.sh
+bash ./install.sh
 \`\`\`
 
 ### 3. 验证安装状态
@@ -355,9 +374,10 @@ kubectl get pods -A
 \`\`\`
 ${BASE_DIR}/
 ├── bin/
-│   ├── kubectl
-│   ├── helm
-│   └── nerdctl-amd64 / nerdctl-arm64
+│   ├── k3s-(amd64/arm64)
+│   ├── helm-(amd64/arm64)
+│   ├── kubectl-(amd64/arm64)
+│   └── nerdctl-(amd64/arm64)
 ├── images/
 │   └── k3s-airgap-images-amd64.tar
 ├── addons/
@@ -366,7 +386,6 @@ ${BASE_DIR}/
 │   └── kube-state-metrics.yaml
 ├── install.sh
 ├── README.md
-└── k3s
 \`\`\`
 
 ---
