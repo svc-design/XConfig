@@ -26,26 +26,26 @@ jobs:
 
       - name: Install dependencies
         run: |
+          export NERDCTL_VERSION=2.0.4
           sudo apt-get update && sudo apt-get install -y curl tar tree
-          # 安装 K3s（使用官方方式）
+          # 安装 K3s
           curl -sfL https://get.k3s.io | sh -
-
-          # 设置 kubeconfig 权限
+          # 设置 kubeconfig
           mkdir -p $HOME/.kube
           sudo cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/config
           sudo chown $USER:$USER $HOME/.kube/config
-
-          # 安装 nerdctl（与你离线包版本一致）
-          export NERDCTL_VERSION=2.0.4
-          curl -LO https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz
+          # 安装 nerdctl
+          sudo curl -LO https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz
           sudo tar -C /usr/local/bin -xzf nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz
+          sudo chmod +x /usr/local/bin/nerdctl
 
-          # nerdctl 验证
-          nerdctl --version
-
-          # 验证 K3s 启动
+          # k3s 测试
           kubectl get nodes
-          nerdctl -n k8s.io images || echo "[INFO] nerdctl 与 K3s containerd 已连接"
+          kubectl get pods -A
+
+          # nerdctl 测试
+          sudo nerdctl --version
+          sudo nerdctl --namespace k8s.io --address /run/k3s/containerd/containerd.sock ps
 
       - name: Run Offline Package Builder
         run: |
@@ -84,10 +84,9 @@ jobs:
       - name: Setup K3s and Test
         run: |
           cd test-dir/k3s-offline-package
-          chmod +x install.sh
-          sudo ./install.sh
-          kubectl get nodes
-          kubectl get pods -A
+          bash install.sh
+          KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes
+          KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -A
 
   publish-release:
     needs: test-k3s-installer
