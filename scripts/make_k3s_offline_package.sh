@@ -1,0 +1,376 @@
+#!/bin/bash
+# make_k3s_offline_package.sh - v1.0.4
+set -e
+
+VERSION="v1.29.1+k3s1"
+ARCH_LIST=("amd64")
+BASE_DIR="k3s-offline-package"
+K3S_URL_BASE="https://github.com/k3s-io/k3s/releases/download/${VERSION}"
+CNI_VERSION="v1.3.0"
+HELM_VERSION="v3.14.2"
+NERDCTL_VERSION="2.0.4"
+
+mkdir -p "${BASE_DIR}/"{bin,images,cni-plugins,addons,registry/docker.io,registry/ghcr.io,install}
+
+safe_copy() {
+  local src_url=$1
+  local dest_path=$2
+  if [[ -f "${dest_path}" ]]; then
+    echo "[SKIP] 已存在：${dest_path}"
+  else
+    echo "[DOWNLOAD] ${src_url} -> ${dest_path}"
+    curl -sLo "$dest_path" "$src_url"
+  fi
+}
+
+export_airgap_images() {
+
+  local arch=$1
+  local ns="k8s.io"
+  local nerdctl=$(command -v nerdctl)
+  local out="${BASE_DIR}/images/k3s-airgap-images-${arch}.tar"
+
+  # ---- 核心镜像列表 ----
+  local core_imgs=(
+    docker.io/rancher/mirrored-pause:3.6
+    docker.io/rancher/mirrored-metrics-server:v0.6.3
+    docker.io/rancher/mirrored-coredns-coredns:1.10.1
+    docker.io/rancher/mirrored-prometheus-node-exporter:v1.3.1
+    docker.io/rancher/mirrored-kube-state-metrics-kube-state-metrics:v2.12.0
+  )
+
+  echo "[INFO] 拉取核心镜像…"
+  for img in "${core_imgs[@]}"; do
+    $nerdctl --address /run/k3s/containerd/containerd.sock -n $ns pull "$img"
+  done
+
+  echo "[INFO] 保存离线包 → $out"
+  mkdir -p "$(dirname "$out")"
+  $nerdctl --address /run/k3s/containerd/containerd.sock -n $ns save -o "$out" "${core_imgs[@]}"
+
+  echo "[OK] 完成：$out 已生成"
+}
+
+########################################
+# 写 node‑exporter YAML → addons/node-exporter.yaml
+########################################
+generate_node_exporter_yaml() {
+  local ADDON_DIR=${BASE_DIR}/addons
+  mkdir -p "$ADDON_DIR"
+
+  cat > "${ADDON_DIR}/node-exporter.yaml" <<'EOF'
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-exporter
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: node-exporter}
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "nodes/proxy", "services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: node-exporter}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: node-exporter}
+subjects:
+- kind: ServiceAccount
+  name: node-exporter
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: kube-system
+spec:
+  selector: {matchLabels: {app: node-exporter}}
+  template:
+    metadata: {labels: {app: node-exporter}}
+    spec:
+      hostPID: true
+      hostNetwork: true
+      serviceAccountName: node-exporter
+      containers:
+      - name: node-exporter
+        image: docker.io/rancher/mirrored-prometheus-node-exporter:v1.3.1
+        imagePullPolicy: IfNotPresent
+        args:
+          - "--path.procfs=/host/proc"
+          - "--path.sysfs=/host/sys"
+          - "--path.rootfs=/host/root"
+        securityContext: {privileged: true}
+        resources:
+          requests: {cpu: "50m", memory: "30Mi"}
+        volumeMounts:
+        - {name: proc,   mountPath: /host/proc,  readOnly: true}
+        - {name: sys,    mountPath: /host/sys,   readOnly: true}
+        - {name: rootfs, mountPath: /host/root,  readOnly: true}
+      volumes:
+      - {name: proc,   hostPath: {path: /proc}}
+      - {name: sys,    hostPath: {path: /sys}}
+      - {name: rootfs, hostPath: {path: /}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-exporter
+  namespace: kube-system
+  labels: {app: node-exporter}
+spec:
+  clusterIP: None
+  selector: {app: node-exporter}
+  ports:
+  - {name: metrics, port: 9100, targetPort: 9100}
+EOF
+  echo "[OK] 生成 ${ADDON_DIR}/node-exporter.yaml"
+}
+
+########################################
+# 写 kube‑state‑metrics YAML → addons/kube-state-metrics.yaml
+########################################
+generate_kube_state_metrics_yaml() {
+  local ADDON_DIR=${BASE_DIR}/addons
+  mkdir -p "$ADDON_DIR"
+
+  cat > "${ADDON_DIR}/kube-state-metrics.yaml" <<'EOF'
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-state-metrics
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: kube-state-metrics}
+rules:
+- apiGroups: [""]
+  resources:
+    ["pods","nodes","namespaces","services","endpoints",
+     "persistentvolumes","persistentvolumeclaims",
+     "configmaps","secrets","limitranges","replicationcontrollers"]
+  verbs: ["get","list","watch"]
+- apiGroups: ["apps"]
+  resources: ["statefulsets","daemonsets","deployments","replicasets"]
+  verbs: ["get","list","watch"]
+- apiGroups: ["batch"]
+  resources: ["cronjobs","jobs"]
+  verbs: ["get","list","watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: kube-state-metrics}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: kube-state-metrics}
+subjects:
+- kind: ServiceAccount
+  name: kube-state-metrics
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-state-metrics
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: kube-state-metrics}}
+  template:
+    metadata: {labels: {app: kube-state-metrics}}
+    spec:
+      serviceAccountName: kube-state-metrics
+      containers:
+      - name: kube-state-metrics
+        image: docker.io/rancher/mirrored-kube-state-metrics-kube-state-metrics:v2.12.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - {name: metrics,    containerPort: 8080}
+        - {name: telemetry,  containerPort: 8081}
+        resources:
+          requests: {cpu: "40m", memory: "60Mi"}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics
+  namespace: kube-system
+  labels: {app: kube-state-metrics}
+spec:
+  selector: {app: kube-state-metrics}
+  ports:
+  - {name: metrics,   port: 8080, targetPort: 8080}
+  - {name: telemetry, port: 8081, targetPort: 8081}
+EOF
+  echo "[OK] 生成 ${ADDON_DIR}/kube-state-metrics.yaml"
+}
+
+for ARCH in "${ARCH_LIST[@]}"; do
+  echo -e "\n[INFO] 准备架构：${ARCH}"
+
+  safe_copy "${K3S_URL_BASE}/k3s" "${BASE_DIR}/bin/k3s-${ARCH}"
+  chmod +x "${BASE_DIR}/bin/k3s-${ARCH}"
+
+  safe_copy "https://dl.k8s.io/release/v1.29.1/bin/linux/${ARCH}/kubectl" "${BASE_DIR}/bin/kubectl-${ARCH}"
+  chmod +x "${BASE_DIR}/bin/kubectl-${ARCH}"
+
+  TMP_HELM="/tmp/helm-${ARCH}.tgz"
+  safe_copy "https://get.helm.sh/helm-${HELM_VERSION}-linux-${ARCH}.tar.gz" "$TMP_HELM"
+  tar -xzf "$TMP_HELM" -C /tmp
+  mv "/tmp/linux-${ARCH}/helm" "${BASE_DIR}/bin/helm-${ARCH}"
+  chmod +x "${BASE_DIR}/bin/helm-${ARCH}"
+
+  safe_copy "https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-${ARCH}.tar.gz" \
+    "/tmp/nerdctl-${NERDCTL_VERSION}-linux-${ARCH}.tar.gz"
+  tar -xzf "/tmp/nerdctl-${NERDCTL_VERSION}-linux-${ARCH}.tar.gz" -C /tmp
+  cp "/tmp/nerdctl" "${BASE_DIR}/bin/nerdctl-${ARCH}"
+  chmod +x "${BASE_DIR}/bin/nerdctl-${ARCH}"
+
+  safe_copy "https://github.com/containernetworking/plugins/releases/download/${CNI_VERSION}/cni-plugins-linux-${ARCH}-${CNI_VERSION}.tgz" \
+    "${BASE_DIR}/cni-plugins/cni-plugins-linux-${ARCH}-${CNI_VERSION}.tgz"
+
+  export_airgap_images "$ARCH"
+
+  generate_node_exporter_yaml
+  generate_kube_state_metrics_yaml
+done
+
+safe_copy "https://get.k3s.io" "${BASE_DIR}/install/k3s-official-install.sh"
+chmod +x "${BASE_DIR}/install/k3s-official-install.sh"
+
+# install.sh
+cat > "${BASE_DIR}/install.sh" <<'EOF'
+#!/bin/bash
+set -e
+
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64 | amd64)  ARCH="amd64"  ;;   # Intel/AMD 64 位
+  aarch64 | arm64) ARCH="arm64"  ;;   # ARM 64 位
+  *)
+    echo "[ERROR] 不支持的架构：$ARCH"
+    exit 1
+    ;;
+esac
+
+K3S_BIN="./bin/k3s-${ARCH}"
+K3S_INSTALL="./install/k3s-official-install.sh"
+
+echo "[INFO] 安装本地 K3s 二进制：${K3S_BIN}"
+cp "${K3S_BIN}" /usr/local/bin/k3s
+chmod +x /usr/local/bin/k3s
+
+echo "[INFO] 准备 airgap 镜像"
+nerdctl             \
+--namespace k8s.io  \
+--address /run/k3s/containerd/containerd.sock load -i images/k3s-airgap-images-amd64.tar
+
+echo "[INFO] 执行官方离线安装脚本"
+INSTALL_K3S_SKIP_DOWNLOAD=true \
+INSTALL_K3S_EXEC="server \
+  --write-kubeconfig-mode 644 \
+  --disable=traefik,servicelb,local-storage \
+  --kube-apiserver-arg=service-node-port-range=0-50000" \
+sh "${K3S_INSTALL}"
+
+echo "[INFO] 等待 K3s 启动..."
+sleep 5
+
+echo "[INFO] 应用默认组件（如存在）"
+kubectl apply -f addons/node-exporter.yaml
+kubectl apply -f addons/kube-state-metrics.yaml
+
+echo "[SUCCESS] 离线 K3s 安装完成 ✅"
+EOF
+
+chmod +x "${BASE_DIR}/install.sh"
+
+cat > "${BASE_DIR}/README.md" <<EOF
+# K3s 离线安装包（v${VERSION}，支持 amd64 / arm64）
+
+## 📦 包含内容
+
+- ✅ **K3s 二进制**（v${VERSION}）
+- ✅ **kubectl / helm CLI**
+- ✅ **nerdctl** v${NERDCTL_VERSION} CLI（可连接 K3s 内置 containerd）
+- ✅ **cni-plugins** v${CNI_VERSION}
+- ✅ **airgap 镜像包** \`images/k3s-airgap-images-\${ARCH}.tar\`
+  包含：
+  - pause:3.6
+  - coredns:1.10.1
+  - metrics-server:v0.6.3
+  - node-exporter:v1.3.1
+  - kube-state-metrics:v2.12.0
+  - 其他 rancher/k3s 默认依赖组件
+- ✅ **默认组件 YAML**
+  - \`addons/metrics-server.yaml\`
+  - \`addons/node-exporter.yaml\`
+  - \`addons/kube-state-metrics.yaml\`
+- ✅ **install.sh 安装脚本**
+  - 调用官方 install.sh，自动加载 airgap 镜像
+  - 支持设置 \`INSTALL_K3S_EXEC\` 追加参数
+
+---
+
+## 🚀 使用方法
+
+### 1. 上传目录到离线节点（如 /opt/k3s-offline-package）
+
+\`\`\`bash
+scp -r k3s-offline-package/ user@remote:/opt/
+\`\`\`
+
+### 2. 安装执行
+
+\`\`\`bash
+cd /opt/k3s-offline-package
+chmod +x install.sh
+sudo ./install.sh
+\`\`\`
+
+### 3. 验证安装状态
+
+\`\`\`bash
+kubectl get nodes
+kubectl get pods -A
+\`\`\`
+
+---
+
+## 🛠️ 使用 nerdctl 操作 K3s 内部 containerd
+
+\`\`\`bash
+./bin/nerdctl-\$(uname -m) \\
+  --namespace k8s.io \\
+  --address /run/k3s/containerd/containerd.sock \\
+  images
+\`\`\`
+
+---
+
+## 📂 目录结构示例
+
+\`\`\`
+${BASE_DIR}/
+├── bin/
+│   ├── kubectl
+│   ├── helm
+│   └── nerdctl-amd64 / nerdctl-arm64
+├── images/
+│   └── k3s-airgap-images-amd64.tar
+├── addons/
+│   ├── metrics-server.yaml
+│   ├── node-exporter.yaml
+│   └── kube-state-metrics.yaml
+├── install.sh
+├── README.md
+└── k3s
+\`\`\`
+
+---
+EOF
+
+echo -e "\n✅ [DONE] 离线安装包构建完成：${BASE_DIR}/"
+tree "${BASE_DIR}" || ls -R "${BASE_DIR}"
