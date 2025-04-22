@@ -25,7 +25,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y curl tar tree helm
+          sudo apt-get update && sudo apt-get install -y curl tar tree
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           curl -sfL https://get.k3s.io | sh -
           mkdir -p $HOME/.kube
           sudo cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/config
