@@ -8,10 +8,13 @@ export keycloak_db_password=$5
 
 cat > keycloak-values.yaml << EOF
 proxy: reencrypt
+tls:
+  enabled: true
+  existingSecret: "$secret"
 auth:
   adminPassword: "$keycloak_ui_password"
 ingress:
-  enabled: true
+  enabled: false
   ingressClassName: "nginx"
   hostname: keycloak.${domain}
   tls: true
@@ -20,13 +23,13 @@ ingress:
       - keycloak.${domain}
     secretName: $secret
 postgresql:
-  enabled: false
-externalDatabase:
-  host: "postgresql.database.svc.cluster.local"
-  port: 5432
-  user: postgres
-  database: keycloak
-  password: "$keycloak_db_password"
+  enabled: true
+#externalDatabase:
+#  host: "postgresql.database.svc.cluster.local"
+#  port: 5432
+#  user: postgres
+#  database: keycloak
+#  password: "$keycloak_db_password"
 EOF
 
 helm repo add bitnami https://charts.bitnami.com/bitnami || echo true

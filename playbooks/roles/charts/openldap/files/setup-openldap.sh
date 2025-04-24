@@ -17,7 +17,7 @@ service:
 phpldapadmin:
   enabled: true
   ingress:
-    enabled: true
+    enabled: false
     ingressClassName: nginx
     hosts:
       - openldap-admin.${domain}
@@ -28,7 +28,7 @@ phpldapadmin:
 ltb-passwd:
   enabled: true
   ingress:
-    enabled: true
+    enabled: false
     ingressClassName: nginx
     hosts:
       - openldap-ltb.${domain}
