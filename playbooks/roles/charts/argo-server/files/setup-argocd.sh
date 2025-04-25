@@ -19,9 +19,7 @@ global:
   domain: argocd.onwalk.net
 server:
   service:
-    type: NodePort
-    nodePortHttp: 80
-    nodePortHttps: 443
+    type: ClusterIP
     servicePortHttp: 80
     servicePortHttps: 443
     servicePortHttpName: http
