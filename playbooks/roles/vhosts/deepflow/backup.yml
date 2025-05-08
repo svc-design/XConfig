@@ -1,0 +1,117 @@
+---
+- name: Backup task for controller and worker nodes
+  hosts: controller
+  become: true  # 需要使用 sudo 权限
+  vars:
+    backup_version: "v1.0"  # 版本号（可以动态调整）
+    backup_date: "{{ ansible_date_time.date }}"  # 当前日期
+    backup_hour: "{{ ansible_date_time.hour }}"  # 当前小时
+    backup_dir: "/mnt/deepflow-backup-{{ backup_version }}-{{ backup_date }}-{{ backup_hour }}"  # 备份目录路径
+    delete_backup: false  # 如果需要删除某个备份点，将此值设置为 true 并提供备份路径
+
+  tasks:
+
+    # 创建备份目录
+    - name: Create backup directory if it does not exist
+      command: mkdir -pv "{{ backup_dir }}"
+      changed_when: false  # 目录创建时不标记为更改
+
+    # 备份目录 /var/lib/mysql/
+    - name: Backup MySQL directory from controller to backup
+      command: >
+        rsync -avz --checksum /var/lib/mysql/ {{ backup_dir }}/mysql/
+      register: rsync_mysql
+      failed_when: rsync_mysql.rc != 0
+      changed_when: rsync_mysql.rc == 0
+
+    # 备份目录 /usr/local/deepflow/
+    - name: Backup DeepFlow directory from controller to backup
+      command: >
+        rsync -avz --checksum /usr/local/deepflow/ {{ backup_dir }}/deepflow/
+      register: rsync_deepflow
+      failed_when: rsync_deepflow.rc != 0
+      changed_when: rsync_deepflow.rc == 0
+
+    # 导出 Kubernetes 配置文件
+    - name: Export deepflow Kubernetes configuration
+      command: kubectl get cm deepflow -ndeepflow -o yaml
+      register: deepflow_config
+      changed_when: false
+
+    - name: Save deepflow Kubernetes configuration to backup
+      copy:
+        content: "{{ deepflow_config.stdout }}"
+        dest: "{{ backup_dir }}/deepflow-server.yaml"
+        mode: '0644'
+
+    # 备份 DeepFlow 配置文件 values-custom.yaml
+    - name: Backup DeepFlow values-custom.yaml from controller to backup
+      command: >
+        rsync -avz --checksum /usr/local/deepflow/templates/values-custom.yaml {{ backup_dir }}/values-custom.yaml
+      register: rsync_values
+      failed_when: rsync_values.rc != 0
+      changed_when: rsync_values.rc == 0
+
+    # 设置备份目录中文件为不可更改 (chattr -i)
+    - name: Set chattr -i to prevent changes to backup files
+      command: chattr -i "{{ backup_dir }}/deepflow-server.yaml"
+      when: backup_dir is defined
+
+    - name: Set chattr -i to prevent changes to backup files (mysql)
+      command: chattr -i "{{ backup_dir }}/mysql/*"
+      when: backup_dir is defined
+
+    - name: Set chattr -i to prevent changes to backup files (deepflow)
+      command: chattr -i "{{ backup_dir }}/deepflow/*"
+      when: backup_dir is defined
+
+    # 删除备份点（如果启用了删除功能）
+    - name: Recursively set chattr -R -i before deleting the backup point
+      command: chattr -R -i "{{ backup_dir }}"
+      when: delete_backup and backup_dir is defined
+
+    - name: Delete a specific backup point (if delete_backup is true)
+      file:
+        path: "{{ backup_dir }}"
+        state: absent
+      when: delete_backup and backup_dir is defined
+
+- name: Backup task for worker nodes
+  hosts: worker
+  become: true  # 需要使用 sudo 权限
+  vars:
+    backup_version: "v1.0"  # 版本号（可以动态调整）
+    backup_date: "{{ ansible_date_time.date }}"  # 当前日期
+    backup_hour: "{{ ansible_date_time.hour }}"  # 当前小时
+    backup_dir: "/mnt/deepflow-backup-{{ backup_version }}-{{ backup_date }}-{{ backup_hour }}"  # 备份目录路径
+    delete_backup: false  # 如果需要删除某个备份点，将此值设置为 true 并提供备份路径
+
+  tasks:
+    # 创建备份目录
+    - name: Create backup directory if it does not exist on worker
+      command: mkdir -pv "{{ backup_dir }}"
+      changed_when: false  # 目录创建时不标记为更改
+
+    # 备份 DeepFlow 配置文件 values-custom.yaml
+    - name: Backup DeepFlow values-custom.yaml from worker to backup
+      command: >
+        rsync -avz --checksum /usr/local/deepflow/templates/values-custom.yaml {{ backup_dir }}/values-custom.yaml
+      register: rsync_values_worker
+      failed_when: rsync_values_worker.rc != 0
+      changed_when: rsync_values_worker.rc == 0
+
+    # 设置备份文件为不可更改 (chattr -i)
+    - name: Set chattr -i to prevent changes to backup files
+      command: chattr -i "{{ backup_dir }}/values-custom.yaml"
+      when: backup_dir is defined
+
+    # 删除备份点（如果启用了删除功能）
+    - name: Recursively set chattr -R -i before deleting the backup point
+      command: chattr -R -i "{{ backup_dir }}"
+      when: delete_backup and backup_dir is defined
+
+    - name: Delete a specific backup point (if delete_backup is true)
+      file:
+        path: "{{ backup_dir }}"
+        state: absent
+      when: delete_backup and backup_dir is defined
