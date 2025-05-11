@@ -1,9 +1,13 @@
 helm repo add cilium https://helm.cilium.io && helm repo update
 helm repo up
 
+#helm upgrade --install cilium-preflight cilium/cilium --version 1.17.3   --namespace=kube-system   --set preflight.enabled=true   --set agent=false   --set operator.enabled=false
+
 cat <<EOF >cilium-egress-values.yaml
 # cilium-values.yaml
 routingMode: native
+k8sServiceHost: 10.253.253.1
+k8sServicePort: 6443
 ipv4NativeRoutingCIDR: "10.42.0.0/16"
 ipam:
   mode: kubernetes
@@ -71,7 +75,3 @@ spec:
 EOF
 
 #kubectl apply -f NodeConfig-cn-hub.yaml -n kube-system
-
-kubectl apply -f https://raw.githubusercontent.com/cilium/cilium/main/install/kubernetes/cilium/crds/v2alpha1/egressnatpolicy.crd.yaml
-
-
