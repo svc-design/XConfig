@@ -1,0 +1,31 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+  labels:
+    app: test-pod
+spec:
+  containers:
+  - name: curl
+    image: curlimages/curl
+    command: ["sleep", "3600"]
+    securityContext:
+      capabilities:
+        add: ["NET_ADMIN"]
+---
+apiVersion: "cilium.io/v2alpha1"
+kind: EgressNATPolicy
+metadata:
+  name: nat-via-wg
+spec:
+  egress:
+  - podSelector:
+      matchLabels:
+        app: test-pod
+    namespaceSelector: {}
+    egressSourceIP: 172.30.0.1  # 本集群 wg0 IP，出口映射地址
+
+  destinationCIDRs:
+  - "0.0.0.0/0"  # 可访问所有外部地址
