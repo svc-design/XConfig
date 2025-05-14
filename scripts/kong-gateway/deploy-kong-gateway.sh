@@ -10,6 +10,9 @@ kong:
     ssl_cert: /etc/secrets/onwalk-tls/tls.crt
     ssl_cert_key: /etc/secrets/onwalk-tls/tls.key
 EOF
+
+kubectl create ns kong || true
+kubectl create secret tls onwalk-tls --cert=/etc/ssl/onwalk.net.pem --key=/etc/ssl/onwalk.net.key -n kong
 helm upgrade --install kong kong/ingress -n kong --create-namespace -f kong-values.yaml
 
 kubectl patch svc kong-gateway-proxy -n kong \
@@ -41,8 +44,20 @@ kubectl patch svc kong-gateway-proxy -n kong \
   -p '{
     "spec": {
       "externalIPs": [
-        "172.30.0.10"
+        "47.120.61.35"
       ]
+    }
+  }'
+
+ kubectl patch deployment kong-gateway -n kong \
+  --type='merge' \
+  -p '{
+    "spec": {
+      "template": {
+        "spec": {
+          "nodeName": "icp-aliyun.svc.plus"
+        }
+      }
     }
   }'
 
@@ -58,3 +73,5 @@ metadata:
 spec:
  controllerName: konghq.com/kic-gateway-controller
 " | kubectl apply -f -
+
+kubectl label nodes icp-aliyun.svc.plus ingress-node=true

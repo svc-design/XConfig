@@ -11,6 +11,8 @@ k8sServicePort: 6443
 ipv4NativeRoutingCIDR: "10.42.0.0/16"
 ipam:
   mode: kubernetes
+  operator:
+    clusterPoolIPv4PodCIDRList: "10.42.0.0/16"
 egressGateway:
   enabled: true
   installRoutes: true
