@@ -7,9 +7,9 @@ export keycloak_ui_password=$4
 export keycloak_db_password=$5
 
 cat > keycloak-values.yaml << EOF
-proxy: reencrypt
+proxy: edge
 tls:
-  enabled: true
+  enabled: false
   existingSecret: "$secret"
 auth:
   adminPassword: "$keycloak_ui_password"
@@ -35,4 +35,5 @@ EOF
 helm repo add bitnami https://charts.bitnami.com/bitnami || echo true
 helm repo update
 kubectl create ns ${namespace} || echo true
+kubectl create secret tls onwalk-tls --cert=/etc/ssl/onwalk.net.pem --key=/etc/ssl/onwalk.net.key -n ${namespace} || echo true
 helm upgrade --install keycloak bitnami/keycloak -n $namespace -f keycloak-values.yaml

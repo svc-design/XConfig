@@ -32,3 +32,7 @@ curl -sfL https://get.k3s.io | sh -s - --disable=traefik,servicelb              
         --service-cidr 10.47.0.0/16
 
 bash setup-k3s-agent.sh 172.23.238.167 
+
+
+mkdir -pv /opt/rancher/k3s
+curl -sfL https://get.k3s.io | sh -s - --disable=flannel,kube-proxy,traefik,servicelb --flannel-backend=none --disable-network-policy --kube-apiserver-arg=service-node-port-range=0-50000 --flannel-iface=br0
