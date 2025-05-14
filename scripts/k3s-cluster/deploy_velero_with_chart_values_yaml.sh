@@ -40,6 +40,8 @@ cat <<EOF > "$VALUES_FILE"
 kubectl:
   image:
     repository: images.onwalk.net/public/bitnami/kubectl 
+    tag: 1.31
+    pullPolicy: IfNotPresent
 image:
   repository: images.onwalk.net/public/velero/velero
   tag: v1.15.2
