@@ -304,7 +304,7 @@ kubectl apply -f addons/kube-state-metrics.yaml || true
 echo "[SUCCESS] 离线 K3s 安装完成 ✅"
 EOF
 
-chmod +x "${BASE_DIR}/install.sh"
+chmod +x "${BASE_DIR}/install-server.sh"
 
 # 生成 install-agent.sh
 cat > "${BASE_DIR}/install-agent.sh" <<'EOF'
@@ -393,10 +393,12 @@ k3s-offline-package 包含：
   - \`addons/metrics-server.yaml\`
   - \`addons/node-exporter.yaml\`
   - \`addons/kube-state-metrics.yaml\`
-- ✅ **install.sh server 安装脚本**
+- ✅ **install-server.sh 安装脚本**
   - 调用官方 install.sh，自动加载 airgap 镜像
   - 支持设置 \`INSTALL_K3S_EXEC\` 追加参数
 - ✅ **install-agent.sh  Agent 安装脚本**
+  - 调用官方 install.sh，自动加载 airgap 镜像
+  - 支持设置 \`INSTALL_K3S_EXEC,K3S_URL,K3S_TOKEN\` 追加参数
 
 ---
 
@@ -412,8 +414,7 @@ scp -r k3s-offline-package/ user@remote:/opt/
 
 \`\`\`bash
 cd /opt/k3s-offline-package
-chmod +x install.sh
-bash ./install.sh
+bash ./install-server.sh
 \`\`\`
 
 \`\`\`bash
@@ -458,8 +459,8 @@ ${BASE_DIR}/
 │   ├── metrics-server.yaml
 │   ├── node-exporter.yaml
 │   └── kube-state-metrics.yaml
-├── install.sh
 ├── install-agent.sh
+├── install-server.sh
 ├── README.md
 \`\`\`
 
