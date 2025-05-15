@@ -84,7 +84,7 @@ jobs:
       - name: Setup K3s and Test
         run: |
           cd test-dir/k3s-offline-package
-          bash install.sh
+          bash install-server.sh
           KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes
           KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get pods -A
 
