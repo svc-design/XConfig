@@ -2,7 +2,7 @@
 # make_k3s_offline_package.sh - v1.0.4
 set -e
 
-VERSION="v1.29.1+k3s1"
+VERSION="v1.32.4+k3s1"
 ARCH_LIST=("amd64")
 BASE_DIR="k3s-offline-package"
 K3S_URL_BASE="https://github.com/k3s-io/k3s/releases/download/${VERSION}"
@@ -242,8 +242,8 @@ done
 safe_copy "https://get.k3s.io" "${BASE_DIR}/install/k3s-official-install.sh"
 chmod +x "${BASE_DIR}/install/k3s-official-install.sh"
 
-# install.sh
-cat > "${BASE_DIR}/install.sh" <<'EOF'
+# 生成 install-server.sh
+cat > "${BASE_DIR}/install-server.sh" <<'EOF'
 #!/bin/bash
 set -e
 
@@ -306,6 +306,70 @@ EOF
 
 chmod +x "${BASE_DIR}/install.sh"
 
+# 生成 install-agent.sh
+cat > "${BASE_DIR}/install-agent.sh" <<'EOF'
+#!/bin/bash
+set -e
+
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64 | amd64)  ARCH="amd64"  ;;
+  aarch64 | arm64) ARCH="arm64"  ;;
+  *)
+    echo "[ERROR] 不支持的架构：$ARCH"
+    exit 1
+    ;;
+esac
+
+if [[ -z "$K3S_TOKEN" || -z "$K3S_URL" ]]; then
+  echo "[ERROR] 你必须设置环境变量 K3S_TOKEN 和 K3S_URL"
+  echo "例如："
+  echo "  export K3S_TOKEN=K10xxxxxxxx"
+  echo "  export K3S_URL=https://<server-ip>:6443"
+  exit 1
+fi
+
+echo "[INFO] 安装 CLI 工具（${ARCH}）到 /usr/local/bin"
+
+# 路径定义
+BIN_DIR="./bin"
+K3S_BIN="${BIN_DIR}/k3s-${ARCH}"
+NERDCTL_BIN="${BIN_DIR}/nerdctl-${ARCH}"
+
+
+install_bin() {
+  local src=$1
+  local dst=$2
+  echo " ↳ $dst"
+  sudo cp "$src" "$dst"
+  sudo chmod +x "$dst"
+}
+
+echo "[INFO] 安装 CLI 工具（${ARCH}）到 /usr/local/bin"
+
+install_bin "$K3S_BIN" /usr/local/bin/k3s
+install_bin "$NERDCTL_BIN" /usr/local/bin/nerdctl
+
+sudo chmod +x /usr/local/bin/k3s
+sudo chmod +x /usr/local/bin/neddctl
+
+echo "[INFO] 执行官方 agent 安装脚本（使用离线模式）"
+INSTALL_K3S_SKIP_DOWNLOAD=true \
+INSTALL_K3S_EXEC="agent" \
+bash install/k3s-official-install.sh
+
+echo "[INFO] 准备 airgap 镜像"
+sudo nerdctl             \
+--namespace k8s.io  \
+--address /run/k3s/containerd/containerd.sock load -i images/k3s-airgap-images-${ARCH}.tar
+
+echo "[SUCCESS] Agent 节点已完成离线安装 ✅"
+
+EOF
+
+chmod +x "${BASE_DIR}/install-agent.sh"
+echo "[OK] 已生成 install-agent.sh ✅"
+
 cat > "${BASE_DIR}/README.md" <<EOF
 # K3s 离线安装包（v${VERSION}，支持 amd64 / arm64）
 
@@ -316,7 +380,9 @@ cat > "${BASE_DIR}/README.md" <<EOF
 - ✅ **cni-plugins** v${CNI_VERSION}
 - ✅ **nerdctl** v${NERDCTL_VERSION} CLI（可连接 K3s 内置 containerd）
 - ✅ **airgap 镜像包** \`images/k3s-airgap-images-\${ARCH}.tar\`
-  包含：
+
+k3s-offline-package 包含：
+
   - pause:3.6
   - coredns:1.10.1
   - metrics-server:v0.6.3
@@ -327,9 +393,10 @@ cat > "${BASE_DIR}/README.md" <<EOF
   - \`addons/metrics-server.yaml\`
   - \`addons/node-exporter.yaml\`
   - \`addons/kube-state-metrics.yaml\`
-- ✅ **install.sh 安装脚本**
+- ✅ **install.sh server 安装脚本**
   - 调用官方 install.sh，自动加载 airgap 镜像
   - 支持设置 \`INSTALL_K3S_EXEC\` 追加参数
+- ✅ **install-agent.sh  Agent 安装脚本**
 
 ---
 
@@ -347,6 +414,13 @@ scp -r k3s-offline-package/ user@remote:/opt/
 cd /opt/k3s-offline-package
 chmod +x install.sh
 bash ./install.sh
+\`\`\`
+
+\`\`\`bash
+cd /opt/k3s-offline-package
+export K3S_URL=https://<server-ip>:6443
+export K3S_TOKEN=K10xxxxxxxx
+bash ./install-agent.sh
 \`\`\`
 
 ### 3. 验证安装状态
@@ -385,6 +459,7 @@ ${BASE_DIR}/
 │   ├── node-exporter.yaml
 │   └── kube-state-metrics.yaml
 ├── install.sh
+├── install-agent.sh
 ├── README.md
 \`\`\`
 
