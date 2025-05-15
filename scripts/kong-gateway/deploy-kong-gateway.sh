@@ -44,7 +44,7 @@ kubectl patch svc kong-gateway-proxy -n kong \
   -p '{
     "spec": {
       "externalIPs": [
-        "47.120.61.35"
+        "172.30.0.11"
       ]
     }
   }'

@@ -18,6 +18,8 @@ cat <<EOF > values.yaml
 global:
   domain: argocd.onwalk.net
 server:
+  extraArgs:
+    - --insecure
   service:
     type: ClusterIP
     servicePortHttp: 80
@@ -26,12 +28,6 @@ server:
     servicePortHttpsName: https
   ingress:
     enabled: false
-    ingressClassName: "nginx"
-    hostname: argocd.onwalk.net
-    annotations:
-      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-      nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-    tls: true
 repoServer:
   extraContainers:
     - name: helmfile

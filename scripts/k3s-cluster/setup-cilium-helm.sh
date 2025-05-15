@@ -3,14 +3,15 @@ API_SERVER_IP=172.30.0.1
 API_SERVER_PORT=6443
 helm upgrade --install cilium cilium/cilium --version 1.17.3 \
     --namespace kube-system  \
+    --set k8sServiceHost=${API_SERVER_IP} \
+    --set k8sServicePort=${API_SERVER_PORT} \
+    --set kubeProxyReplacement=true \
     --set routingMode=native \
     --set autoDirectNodeRoutes=true \
     --set ipv4NativeRoutingCIDR="10.42.0.0/16" \
     --set ipam.mode=kubernetes \
     --set ipam.operator.clusterPoolIPv4PodCIDRList="10.42.0.0/16" \
-    --set kubeProxyReplacement=true \
-    --set k8sServiceHost=${API_SERVER_IP} \
-    --set k8sServicePort=${API_SERVER_PORT} \
+    --set k8s.requireIPv4PodCIDR=true \
     --set nodePort.enabled=true \
     --set nodePort.directRoutingDevice=wg0 \
     --set envoy.enabled=false              \
