@@ -45,6 +45,22 @@ uid=1000(ubuntu) gid=1001(ubuntu) groups=1001(ubuntu),27(sudo),...
 bash
 ./craftweave ansible all -i example/inventory -m shell -a 'id' -C
 
+
+🔁 聚合输出（推荐用于大规模场景）
+./craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
+示例输出：
+
+deepflow-demo,cn-hub,tky-proxy | CHANGED | rc=0 >>
+uid=1000(ubuntu) gid=1000(ubuntu) groups=...
+
+icp-huawei,global-hub | CHANGED | rc=0 >>
+uid=0(root) gid=0(root) groups=0(root)
+
+# ⚙️ 全局参数
+
+参数	描述
+--aggregate, -A	聚合输出相同结果的主机，适用于大规模展示
+
 # 📁 项目结构
 
 CraftWeave/
@@ -61,8 +77,11 @@ CraftWeave/
 │   ├── cmdb/             # 图模型构建与导出
 │   └── plugin/           # 插件接口定义与加载
 ├── internal/             # 内部工具库（如 ssh 执行器、inventory 解析器）
-│   ├── ssh/
 │   └── inventory/
+│   └── ssh/
+│       ├── result.go       # ➕ 定义 CommandResult
+│       ├── formatter.go    # ➕ 实现 AggregatedPrint
+│       └── runner.go       # 🔁 改为返回 CommandResult
 ├── plugins/              # 插件目录（WASM/Go 可选）
 ├── example/              # 示例配置（inventory 等）
 │   └── inventory
@@ -75,3 +94,5 @@ CraftWeave/
 # 🔮 愿景
 
 CraftWeave 旨在成为下一代 DevOps 工具 —— 融合任务调度、架构可视化与智能插件能力，支持轻量化、模块化和智能化的运维体验。
+
+> 辅以 🤖 ChatGPT 之力，愿你我皆成 AIGC 时代的创造者与编织者 🚀

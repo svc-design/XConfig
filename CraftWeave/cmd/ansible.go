@@ -28,7 +28,10 @@ var ansibleCmd = &cobra.Command{
 			return
 		}
 
+		var results []ssh.CommandResult
+		var mu sync.Mutex
 		var wg sync.WaitGroup
+
 		for _, h := range hosts {
 			wg.Add(1)
 			go func(h inventory.Host) {
@@ -37,10 +40,22 @@ var ansibleCmd = &cobra.Command{
 					fmt.Printf("%s | SKIPPED\n", h.Name)
 					return
 				}
-				ssh.RunShellCommand(h, args)
+				res := ssh.RunShellCommand(h, args)
+				mu.Lock()
+				results = append(results, res)
+				mu.Unlock()
 			}(h)
 		}
 		wg.Wait()
+
+		// 输出
+		if AggregateOutput {
+			ssh.AggregatedPrint(results)
+		} else {
+			for _, r := range results {
+				fmt.Printf("%s | %s | rc=%d >>\n%s\n", r.Host, r.ReturnMsg, r.ReturnCode, r.Output)
+			}
+		}
 	},
 }
 
