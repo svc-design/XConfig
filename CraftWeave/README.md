@@ -20,41 +20,47 @@
 2. 执行远程 shell 命令（类似 ansible）
 使用 INI 格式的 inventory 文件：
 
-ini
+```
 [all]
-deepflow-demo  ansible_host=192.168.124.77     ansible_ssh_user=shenlan
+demo           ansible_host=192.168.124.77     ansible_ssh_user=shenlan
 cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
-...
+```
+
 
 [all:vars]
 ansible_port=22
 ansible_ssh_private_key_file=~/.ssh/id_rsa
-执行命令： ./craftweave ansible all -i example/inventory -m shell -a 'id'
-输出示例：
 
+3. 执行命令： ./craftweave ansible all -i example/inventory -m shell -a 'id'
+4. 输出示例：
+```
 🧶 欢迎使用：CraftWeave - 任务与架构编织工具
 deepflow-demo | CHANGED | rc=0 >>
 uid=1000(shenlan) gid=1000(shenlan) groups=1000(shenlan),10(wheel)
 
 cn-hub | CHANGED | rc=0 >>
-uid=1000(ubuntu) gid=1001(ubuntu) groups=1001(ubuntu),27(sudo),...
-
+uid=1000(ubuntu) gid=1001(ubuntu) groups=1001(ubuntu),27(sudo),
 ...
-支持 dry-run 模式：
+```
 
-bash
-./craftweave ansible all -i example/inventory -m shell -a 'id' -C
+5. 支持 dry-run 模式：
+
+craftweave ansible all -i example/inventory -m shell -a 'id' -C
 
 
-🔁 聚合输出（推荐用于大规模场景）
-./craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
+6. 聚合输出（推荐用于大规模场景）
+
+craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
+
 示例输出：
 
-deepflow-demo,cn-hub,tky-proxy | CHANGED | rc=0 >>
+```
+demo,cn-hub,tky-proxy | CHANGED | rc=0 >>
 uid=1000(ubuntu) gid=1000(ubuntu) groups=...
 
 icp-huawei,global-hub | CHANGED | rc=0 >>
 uid=0(root) gid=0(root) groups=0(root)
+```
 
 # ⚙️ 全局参数
 
@@ -63,6 +69,7 @@ uid=0(root) gid=0(root) groups=0(root)
 
 # 📁 项目结构
 
+```
 CraftWeave/
 ├── cmd/                  # Cobra 命令定义
 │   ├── root.go           # 根命令
@@ -90,6 +97,7 @@ CraftWeave/
 ├── go.sum
 ├── main.go
 └── README.md
+```
 
 # 🔮 愿景
 
