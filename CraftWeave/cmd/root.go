@@ -7,6 +7,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// 全局控制是否启用聚合输出（例如：--aggregate / -A）
+var AggregateOutput bool
+
 var rootCmd = &cobra.Command{
 	Use:   "craftweave",
 	Short: "CraftWeave - 执行与编织任务和架构的现代工具",
@@ -16,23 +19,34 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+// 入口函数
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
 }
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
+	// 添加全局子命令
 	rootCmd.AddCommand(ansibleCmd)
 	rootCmd.AddCommand(playbookCmd)
 	rootCmd.AddCommand(vaultCmd)
 	rootCmd.AddCommand(cmdbCmd)
 	rootCmd.AddCommand(pluginCmd)
+
+	// 注册全局标志（所有子命令可用）
+	rootCmd.PersistentFlags().BoolVarP(
+		&AggregateOutput,
+		"aggregate", "A",
+		false,
+		"Aggregate output from multiple hosts",
+	)
 }
 
+// 启动时打印 ASCII Banner
 func printBanner() {
 	content, err := os.ReadFile("banner.txt")
 	if err == nil {
 		fmt.Println(string(content))
 	}
 }
-

@@ -7,7 +7,8 @@ import (
 	"craftweave/internal/inventory"
 )
 
-func RunShellCommand(h inventory.Host, command string) {
+// RunShellCommand 通过 SSH 执行命令，并返回 CommandResult
+func RunShellCommand(h inventory.Host, command string) CommandResult {
 	cmd := exec.Command("ssh",
 		"-i", h.KeyFile,
 		"-p", h.Port,
@@ -15,10 +16,17 @@ func RunShellCommand(h inventory.Host, command string) {
 		command,
 	)
 	output, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Printf("%s | FAILED | %v\n", h.Name, err)
-	} else {
-		fmt.Printf("%s | CHANGED | rc=0 >>\n%s\n", h.Name, string(output))
+	result := CommandResult{
+		Host:   h.Name,
+		Output: string(output),
 	}
+	if err != nil {
+		result.ReturnMsg = "FAILED"
+		result.ReturnCode = 1
+	} else {
+		result.ReturnMsg = "CHANGED"
+		result.ReturnCode = 0
+	}
+	return result
 }
 
