@@ -21,6 +21,7 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.AddCommand(ansibleCmd)
 	rootCmd.AddCommand(playbookCmd)
 	rootCmd.AddCommand(vaultCmd)
