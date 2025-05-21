@@ -1,5 +1,5 @@
 [all]
-deepflow-demo  ansible_host=192.168.124.77     ansible_ssh_user=shenlan
+demo           ansible_host=192.168.124.77     ansible_ssh_user=shenlan
 cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
 global-hub     ansible_host=167.179.72.223     ansible_ssh_user=root
 icp-huawei     ansible_host=139.9.139.22       ansible_ssh_user=root
@@ -12,5 +12,6 @@ ca-proxy       ansible_host=3.98.174.218       ansible_ssh_user=ubuntu
 domain='svc.plus'
 ansible_port=22
 ansible_ssh_user=ubuntu
-ansible_ssh_private_key_file=~/.ssh/id_rsa
+ansible_ssh_pass=''
+#ansible_ssh_private_key_file=~/.ssh/id_rsa
 ansible_host_key_checking=False

@@ -7,12 +7,14 @@ import (
 )
 
 type Host struct {
-	Name    string
-	Address string
-	User    string
-	KeyFile string
-	Port    string
+	Name     string
+	Address  string
+	User     string
+	KeyFile  string
+	Port     string
+	Password string // ✅ 新增：支持密码登录
 }
+
 
 func Parse(path, group string) ([]Host, error) {
 	file, err := os.Open(path)

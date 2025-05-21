@@ -11,6 +11,7 @@ all: build
 init:
 	go mod init craftweave
 	GOPROXY=https://goproxy.cn,direct go get github.com/spf13/cobra@latest
+	GOPROXY=https://goproxy.cn,direct go get golang.org/x/crypto/ssh
 	go mod tidy
 
 build:
