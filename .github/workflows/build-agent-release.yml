@@ -5,10 +5,6 @@ on:
     paths:
       - 'CraftWeaveAgent/**'
       - '.github/workflows/build-agent-release.yml'
-  push:
-    paths:
-      - 'CraftWeaveAgent/**'
-      - '.github/workflows/build-agent-release.yml'
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
