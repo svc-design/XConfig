@@ -1,0 +1,94 @@
+name: Build and Release CraftWeave Agent
+
+on:
+  pull_request:
+    paths:
+      - 'CraftWeaveAgent/**'
+      - '.github/workflows/build-agent-release.yml'
+  push:
+    paths:
+      - 'CraftWeaveAgent/**'
+      - '.github/workflows/build-agent-release.yml'
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build cw-agent binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+          targets: ${{ matrix.target }}
+
+      - name: Build binary
+        working-directory: CraftWeaveAgent
+        run: |
+          mkdir -p dist
+          cargo build --release --target ${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/cw-agent dist/cw-agent-${{ matrix.target }}
+
+      - name: Compress binary
+        working-directory: CraftWeaveAgent/dist
+        run: |
+          tar -czvf cw-agent-${{ matrix.target }}.tar.gz cw-agent-${{ matrix.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cw-agent-${{ matrix.target }}
+          path: CraftWeaveAgent/dist/cw-agent-${{ matrix.target }}.tar.gz
+
+  test:
+    name: Test Rust Agent
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Run cargo test
+        working-directory: CraftWeaveAgent
+        run: cargo test
+
+  publish-release:
+    name: Publish Daily Release
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      tag_name: daily-agent-${{ github.run_id }}
+      release_name: Daily Build cw-agent - ${{ github.run_number }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.tag_name }}
+          name: ${{ env.release_name }}
+          prerelease: true
+          files: |
+            release-artifacts/**/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
