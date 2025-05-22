@@ -10,12 +10,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-linux:
-    name: Build cw-agent binaries (Linux)
-    runs-on: ubuntu-latest
+  build:
+    name: Build cw-agent binaries
+    runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        target: [x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu]
+        os: [ubuntu, macos, windows]
+        arch: [amd64, arm64]
 
     steps:
       - name: Checkout Repo
@@ -25,112 +26,42 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: ${{ matrix.target }}
           override: true
 
       - name: Build binary
         working-directory: CraftWeaveAgent
         run: |
           mkdir -p dist
-          cargo build --release --target ${{ matrix.target }}
-          cp target/${{ matrix.target }}/release/cw-agent dist/cw-agent-${{ matrix.target }}
+          cargo build --release
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            cp target/release/cw-agent.exe dist/cw-agent-${{ matrix.os }}-${{ matrix.arch }}.exe
+          else
+            cp target/release/cw-agent dist/cw-agent-${{ matrix.os }}-${{ matrix.arch }}
+          fi
+        shell: bash
 
       - name: Compress and checksum
         working-directory: CraftWeaveAgent/dist
         run: |
-          tar -czvf cw-agent-${{ matrix.target }}.tar.gz cw-agent-${{ matrix.target }}
-          sha256sum cw-agent-${{ matrix.target }}.tar.gz > cw-agent-${{ matrix.target }}.sha256
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            powershell -Command "Compress-Archive -Path cw-agent-${{ matrix.os }}-${{ matrix.arch }}.exe -DestinationPath cw-agent-${{ matrix.os }}-${{ matrix.arch }}.zip"
+            powershell -Command "Get-FileHash cw-agent-${{ matrix.os }}-${{ matrix.arch }}.zip -Algorithm SHA256 | ForEach-Object { \"$($_.Hash)  cw-agent-${{ matrix.os }}-${{ matrix.arch }}.zip\" } | Out-File -Encoding ASCII -FilePath cw-agent-${{ matrix.os }}-${{ matrix.arch }}.sha256"
+          else
+            tar -czvf cw-agent-${{ matrix.os }}-${{ matrix.arch }}.tar.gz cw-agent-${{ matrix.os }}-${{ matrix.arch }}
+            shasum -a 256 cw-agent-${{ matrix.os }}-${{ matrix.arch }}.tar.gz > cw-agent-${{ matrix.os }}-${{ matrix.arch }}.sha256
+          fi
+        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cw-agent-${{ matrix.target }}
+          name: cw-agent-${{ matrix.os }}-${{ matrix.arch }}
           path: |
-            CraftWeaveAgent/dist/cw-agent-${{ matrix.target }}.tar.gz
-            CraftWeaveAgent/dist/cw-agent-${{ matrix.target }}.sha256
-
-  build-macos:
-    name: Build cw-agent binaries (macOS)
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        target: [x86_64-apple-darwin, aarch64-apple-darwin]
-
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
-
-      - name: Build binary
-        working-directory: CraftWeaveAgent
-        run: |
-          mkdir -p dist
-          cargo build --release --target ${{ matrix.target }}
-          cp target/${{ matrix.target }}/release/cw-agent dist/cw-agent-${{ matrix.target }}
-
-      - name: Compress and checksum
-        working-directory: CraftWeaveAgent/dist
-        run: |
-          tar -czvf cw-agent-${{ matrix.target }}.tar.gz cw-agent-${{ matrix.target }}
-          shasum -a 256 cw-agent-${{ matrix.target }}.tar.gz > cw-agent-${{ matrix.target }}.sha256
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cw-agent-${{ matrix.target }}
-          path: |
-            CraftWeaveAgent/dist/cw-agent-${{ matrix.target }}.tar.gz
-            CraftWeaveAgent/dist/cw-agent-${{ matrix.target }}.sha256
-
-  build-windows:
-    name: Build cw-agent binaries (Windows)
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        target: [x86_64-pc-windows-msvc]
-
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
-
-      - name: Build binary
-        working-directory: CraftWeaveAgent
-        run: |
-          mkdir dist
-          cargo build --release --target ${{ matrix.target }}
-          copy target\${{ matrix.target }}\release\cw-agent.exe dist\cw-agent-${{ matrix.target }}.exe
-
-      - name: Compress and checksum
-        working-directory: CraftWeaveAgent\dist
-        run: |
-          Compress-Archive -Path cw-agent-${{ matrix.target }}.exe -DestinationPath cw-agent-${{ matrix.target }}.zip
-          Get-FileHash cw-agent-${{ matrix.target }}.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash)  cw-agent-${{ matrix.target }}.zip" } | Out-File -Encoding ASCII -FilePath cw-agent-${{ matrix.target }}.sha256
-        shell: pwsh
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cw-agent-${{ matrix.target }}
-          path: |
-            CraftWeaveAgent/dist/cw-agent-${{ matrix.target }}.zip
-            CraftWeaveAgent/dist/cw-agent-${{ matrix.target }}.sha256
+            CraftWeaveAgent/dist/cw-agent-${{ matrix.os }}-${{ matrix.arch }}*
 
   test:
     name: Test Rust Agent (Linux only)
-    needs: build-linux
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
@@ -143,7 +74,7 @@ jobs:
 
   publish-release:
     name: Publish Daily Release
-    needs: [build-linux, build-macos, build-windows, test]
+    needs: [build, test]
     runs-on: ubuntu-latest
     env:
       tag_name: daily-agent-${{ github.run_id }}
