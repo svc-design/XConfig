@@ -1,0 +1,93 @@
+# 🧶 CraftWeave
+
+**CraftWeave** 是一个融合任务编排、架构建模和轻量执行能力的下一代 DevOps 工具，灵感源于 Ansible，但更灵活、模块化，支持图模型导出与插件扩展，并具备独立运行的 Rust 轻量 Agent。
+
+---
+
+## 🧩 特性概览
+
+### ✅ 控制端（Go 实现）
+- 🛠️ `craftweave ansible`：类 Ansible 远程命令执行
+- 📜 `craftweave playbook`：YAML 多步骤任务编排
+- 🔐 `craftweave vault`：加解密配置 (TODO)
+- 🧠 `craftweave cmdb`：导出拓扑图数据库 (TODO)
+- 🔌 `craftweave plugin`：支持插件执行，预留 WASM 接口 (TODO)
+
+### ✅ Agent 端（Rust 实现）
+- 🧩 定时拉取配置并执行命令/copy/service 等操作
+- 📦 独立运行、轻量部署，可在任意主机常驻执行
+
+---
+
+## 🚀 快速开始（控制端 CLI）
+
+1. 编译 make
+2. 示例 inventory 文件（INI 格式）
+
+[all]
+demo           ansible_host=192.168.124.77     ansible_ssh_user=shenlan
+cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
+global-hub     ansible_host=2.15.135.215       ansible_ssh_user=centos
+
+[all:vars]
+ansible_port=22
+ansible_ssh_private_key_file=~/.ssh/id_rsa
+
+3. 远程执行命令（类似 Ansible）
+
+craftweave ansible all -i example/inventory -m shell -a 'id'
+
+4. 输出聚合展示（推荐用于大规模场景
+
+craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
+
+5. 上传并执行脚本
+
+craftweave ansible all -i example/inventory -m script -a example/uname.sh
+
+# ⚙️ 全局参数
+
+参数	描述
+--aggregate, -A	聚合输出相同结果的主机（大规模场景推荐）
+--check, -C	Dry-run 模式，不实际执行命令（TODO）
+
+# 控制端（Go 实现）
+
+# 📁 项目结构
+CraftWeave/
+├── cmd/                  # CLI 命令定义（Cobra）
+├── core/                 # 核心执行器、解析器、拓扑建模
+├── internal/             # SSH 库、Inventory 处理
+├── plugins/              # 插件接口定义与运行（TODO）
+├── example/              # 示例 inventory + 脚本
+├── banner.txt            # CLI 欢迎图标
+├── CraftWeaveAgent/      # Rust 版 cw-agent
+│   └── src/              # agent 源码目录
+└── main.go
+
+#🧠 CraftWeave Agent（Rust 实现）
+
+📦 结构目录
+cw-agent/
+├── Cargo.toml
+├── cw-agent.service              # systemd 单元文件（可选）
+└── src/
+    ├── main.rs                  # CLI 入口，启动/守护/状态
+    ├── scheduler.rs             # 定时拉取与调度执行
+    ├── config.rs                # 解析配置（JSON、Git、HTTP）
+    ├── executor.rs              # 支持 command/copy/service 执行
+    ├── result_store.rs          # 本地 JSON/DB 结果保存
+    └── models.rs                # 配置/结果结构体定义
+
+# 📦 使用方式
+
+cw-agent run --oneshot                # 拉取一次并执行
+cw-agent daemon                       # 持续运行
+cw-agent status                       # 查看最新执行结果
+cw-agent apply --file config.json     # 执行本地任务（离线）
+
+# 🔮 愿景
+
+CraftWeave 旨在成为下一代轻量级 DevOps 工具，融合任务调度、配置编排、架构建模、图数据库与 AI 辅助的智能插件系统，构建“人-机-架构”高效协作闭环。
+
+> 借助 🤖 ChatGPT 之力，愿你我皆成 AIGC 时代的创造者与编织者 🚀
