@@ -1,7 +1,0 @@
----
-- hosts: vpn-gateway
-  user: ubuntu
-  become: yes
-  gather_facts: yes
-  roles:
-    - wireguard-gateway

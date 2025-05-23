@@ -1,8 +1,0 @@
----
-- name: deploy harbor server
-  hosts: all
-  user: ubuntu
-  become: yes
-  gather_facts: yes
-  roles:
-    - harbor

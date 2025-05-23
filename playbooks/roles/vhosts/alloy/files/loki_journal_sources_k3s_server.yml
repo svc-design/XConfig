@@ -1,3 +1,0 @@
-loki_journal_sources:
-  - name: "k3s"
-    unit: "k3s.service"

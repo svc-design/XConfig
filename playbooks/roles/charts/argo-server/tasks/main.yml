@@ -1,2 +1,0 @@
-- name: Set ArgoCD Contoller
-  script: files/setup-argocd.sh
