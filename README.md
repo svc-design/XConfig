@@ -24,6 +24,7 @@
 1. 编译 make
 2. 示例 inventory 文件（INI 格式）
 
+```
 [all]
 demo           ansible_host=192.168.124.77     ansible_ssh_user=shenlan
 cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
@@ -32,6 +33,7 @@ global-hub     ansible_host=2.15.135.215       ansible_ssh_user=centos
 [all:vars]
 ansible_port=22
 ansible_ssh_private_key_file=~/.ssh/id_rsa
+```
 
 3. 远程执行命令（类似 Ansible）
 
