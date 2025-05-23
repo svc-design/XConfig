@@ -1,8 +1,0 @@
----
-- name: Init Linux OS Common setting
-  hosts: all
-  user: ubuntu
-  become: yes
-  gather_facts: yes
-  roles:
-    - vhosts/common

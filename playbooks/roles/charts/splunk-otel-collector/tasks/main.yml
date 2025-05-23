@@ -1,2 +1,0 @@
-- name: Setup splunk otel collector
-  script: files/setup.sh {{ splunk_hec_url }} {{ splunk_hec_token }}

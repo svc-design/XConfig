@@ -1,3 +1,0 @@
-dependencies:
-  - role: mysql
-  - role: secret-manger

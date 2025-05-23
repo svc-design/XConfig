@@ -1,3 +1,0 @@
-loki_journal_sources:
-  - name: "postgresql"
-    unit: "postgresql.service"
