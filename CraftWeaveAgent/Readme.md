@@ -1,4 +1,4 @@
-
+```
 cw-agent/
 ├── Cargo.toml
 ├── README.md
@@ -10,7 +10,7 @@ cw-agent/
     ├── executor.rs              # 执行任务（command/copy/service 等）
     ├── result_store.rs          # 存储执行结果（JSON / local DB）
     └── models.rs                # 配置结构体 / 执行结果结构体
-
+```
 
 # 扩展
 
