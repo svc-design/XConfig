@@ -45,6 +45,13 @@ craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
 
 craftweave ansible all -i example/inventory -m script -a example/uname.sh
 
+# 📦 Agent 端使用方式
+
+cw-agent run --oneshot                # 拉取一次并执行
+cw-agent daemon                       # 持续运行
+cw-agent status                       # 查看最新执行结果
+cw-agent apply --file config.json     # 执行本地任务（离线）
+
 # ⚙️ 全局参数
 
 参数	描述
@@ -53,7 +60,8 @@ craftweave ansible all -i example/inventory -m script -a example/uname.sh
 
 # 控制端（Go 实现）
 
-# 📁 项目结构
+📁 项目结构
+```
 CraftWeave/
 ├── cmd/                  # CLI 命令定义（Cobra）
 ├── core/                 # 核心执行器、解析器、拓扑建模
@@ -64,11 +72,13 @@ CraftWeave/
 ├── CraftWeaveAgent/      # Rust 版 cw-agent
 │   └── src/              # agent 源码目录
 └── main.go
+```
 
 #🧠 CraftWeave Agent（Rust 实现）
 
 📦 结构目录
-cw-agent/
+```
+CraftWeave-agent/
 ├── Cargo.toml
 ├── cw-agent.service              # systemd 单元文件（可选）
 └── src/
@@ -78,16 +88,10 @@ cw-agent/
     ├── executor.rs              # 支持 command/copy/service 执行
     ├── result_store.rs          # 本地 JSON/DB 结果保存
     └── models.rs                # 配置/结果结构体定义
-
-# 📦 使用方式
-
-cw-agent run --oneshot                # 拉取一次并执行
-cw-agent daemon                       # 持续运行
-cw-agent status                       # 查看最新执行结果
-cw-agent apply --file config.json     # 执行本地任务（离线）
+```
 
 # 🔮 愿景
 
-CraftWeave 旨在成为下一代轻量级 DevOps 工具，融合任务调度、配置编排、架构建模、图数据库与 AI 辅助的智能插件系统，构建“人-机-架构”高效协作闭环。
+CraftWeave 旨在成为一个轻量级 DevOps 工具，融合任务调度、配置编排、架构建模、图数据库与 AI 辅助的智能插件系统，构建“人-机-架构”高效协作闭环。
 
 > 借助 🤖 ChatGPT 之力，愿你我皆成 AIGC 时代的创造者与编织者 🚀
