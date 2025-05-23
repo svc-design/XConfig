@@ -1,0 +1,8 @@
+- name: Run hostname across all
+  hosts: all
+  tasks:
+    - name: Show hostname
+      shell: hostname
+
+    - name: Upload and run script
+      script: ./example/nproc.sh

@@ -7,9 +7,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// 全局控制是否启用聚合输出（例如：--aggregate / -A）
-var AggregateOutput bool
-
 var rootCmd = &cobra.Command{
 	Use:   "craftweave",
 	Short: "CraftWeave - 执行与编织任务和架构的现代工具",

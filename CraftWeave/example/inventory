@@ -1,5 +1,5 @@
 [all]
-demo           ansible_host=192.168.124.77     ansible_ssh_user=shenlan
+demo           ansible_host=172.30.0.11        ansible_ssh_user=shenlan
 cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
 global-hub     ansible_host=167.179.72.223     ansible_ssh_user=root
 icp-huawei     ansible_host=139.9.139.22       ansible_ssh_user=root
