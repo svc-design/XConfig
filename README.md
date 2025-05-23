@@ -1,6 +1,6 @@
 # 🧶 CraftWeave
 
-**CraftWeave** 是一个融合任务编排、架构建模和轻量执行能力的下一代 DevOps 工具，灵感源于 Ansible，但更灵活、模块化，支持图模型导出与插件扩展，并具备独立运行的 Rust 轻量 Agent。
+**CraftWeave** 是一个融合任务编排、架构建模和轻量执行能力的DevOps 工具，灵感源于 Ansible，但更灵活、模块化，支持图模型导出与插件扩展，并具备独立运行的 Rust 轻量 Agent。
 
 ---
 
