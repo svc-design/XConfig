@@ -49,10 +49,10 @@ craftweave ansible all -i example/inventory -m script -a example/uname.sh
 
 # 📦 Agent 端使用方式
 
-cw-agent run --oneshot                # 拉取一次并执行
-cw-agent daemon                       # 持续运行
-cw-agent status                       # 查看最新执行结果
-cw-agent apply --file config.json     # 执行本地任务（离线）
+- cw-agent run --oneshot                # 拉取一次并执行
+- cw-agent daemon                       # 持续运行
+- cw-agent status                       # 查看最新执行结果
+- cw-agent apply --file config.json     # 执行本地任务（离线）
 
 # ⚙️ 全局参数
 
