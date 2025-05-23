@@ -23,11 +23,6 @@ var ansibleCmd = &cobra.Command{
 			return
 		}
 
-		if module != "shell" {
-			fmt.Printf("Only 'shell' module is implemented. '%s' is not supported.\n", module)
-			return
-		}
-
 		var results []ssh.CommandResult
 		var mu sync.Mutex
 		var wg sync.WaitGroup
@@ -40,7 +35,21 @@ var ansibleCmd = &cobra.Command{
 					fmt.Printf("%s | SKIPPED\n", h.Name)
 					return
 				}
-				res := ssh.RunShellCommand(h, args)
+
+				var res ssh.CommandResult
+				if module == "shell" {
+					res = ssh.RunShellCommand(h, args)
+				} else if module == "script" {
+					res = ssh.RunRemoteScript(h, args)
+				} else {
+					res = ssh.CommandResult{
+						Host:       h.Name,
+						ReturnMsg:  "FAILED",
+						ReturnCode: 1,
+						Output:     fmt.Sprintf("Module '%s' is not supported.", module),
+					}
+				}
+
 				mu.Lock()
 				results = append(results, res)
 				mu.Unlock()

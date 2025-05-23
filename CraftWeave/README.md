@@ -24,7 +24,6 @@
 [all]
 demo           ansible_host=192.168.124.77     ansible_ssh_user=shenlan
 cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
-```
 
 
 [all:vars]
@@ -53,13 +52,27 @@ craftweave ansible all -i example/inventory -m shell -a 'id' -C
 craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
 
 示例输出：
-
 ```
+```bash
 demo,cn-hub,tky-proxy | CHANGED | rc=0 >>
 uid=1000(ubuntu) gid=1000(ubuntu) groups=...
 
 icp-huawei,global-hub | CHANGED | rc=0 >>
 uid=0(root) gid=0(root) groups=0(root)
+
+
+7. 执行本地脚本（上传到远程临时执行）
+
+```bash
+chmod +x example/*.sh
+
+./craftweave ansible -i example/inventory all -m script -a example/echo.sh
+./craftweave ansible -i example/inventory all -m script -a example/uname.sh --aggregate
+./craftweave ansible -i example/inventory all -m script -a example/nproc.sh --aggregate
+```bash
+```
+
+📌 `--aggregate / -A` 会自动对输出相同的主机进行聚合展示。
 ```
 
 # ⚙️ 全局参数
@@ -90,8 +103,10 @@ CraftWeave/
 │       ├── formatter.go    # ➕ 实现 AggregatedPrint
 │       └── runner.go       # 🔁 改为返回 CommandResult
 ├── plugins/              # 插件目录（WASM/Go 可选）
-├── example/              # 示例配置（inventory 等）
-│   └── inventory
+├── example/              # 示例 inventory 和脚本
+│   ├── inventory         # 测试主机清单
+│   ├── echo.sh           # 输出 hostname
+│   └── uname.sh          # 输出内核信息
 ├── banner.txt            # CLI 启动 ASCII 图标
 ├── go.mod
 ├── go.sum
