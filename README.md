@@ -47,12 +47,15 @@ craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
 
 craftweave ansible all -i example/inventory -m script -a example/uname.sh
 
-# 📦 Agent 端使用方式
+# 📦 Agent 支持命令说明
 
-- cw-agent run --oneshot                # 拉取一次并执行
-- cw-agent daemon                       # 持续运行
-- cw-agent status                       # 查看最新执行结果
-- cw-agent apply --file config.json     # 执行本地任务（离线）
+| 命令格式                      | 功能说明                                               |
+|-----------------------------|--------------------------------------------------------|
+| `cw-agent oneshot`           | 一次性从 `/etc/cw-agent.conf` 拉取 Git 仓库并执行 Playbook |
+| `cw-agent daemon`            | 持续运行，按 interval 定期拉取并执行                   |
+| `cw-agent playbook --file x.yaml` | 执行指定本地 Playbook 文件（仅作用于本机）           |
+| `cw-agent status`            | 输出最近一次任务执行结果（来自 `/var/lib/cw-agent/`） |
+| `cw-agent version`           | 显示版本号信息
 
 # ⚙️ 全局参数
 
