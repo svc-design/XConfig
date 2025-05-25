@@ -22,7 +22,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Run once using playbook from Git repo
+    /// Run once using playbook(s) from Git repo
     Oneshot,
     /// Run as daemon with interval from config file
     Daemon,
@@ -48,14 +48,12 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         Commands::Oneshot => {
-            let content = config::fetch_git_and_load_playbook(
-                &agent_config.repo,
-                "sync/playbook.yaml",
-            )
-            .await?;
-            let parsed: Vec<models::Play> = serde_yaml::from_str(&content)?;
-            let results = run_playbook(parsed).await?;
-            result_store::persist(results).await?;
+            for path in &agent_config.playbook {
+                let content = config::fetch_git_and_load_playbook(&agent_config.repo, path).await?;
+                let parsed: Vec<models::Play> = serde_yaml::from_str(&content)?;
+                let results = run_playbook(parsed).await?;
+                result_store::persist(results).await?;
+            }
         }
         Commands::Daemon => {
             scheduler::run_schedule(&agent_config).await?;

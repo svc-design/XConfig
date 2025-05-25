@@ -1,31 +1,89 @@
-```
+# 🦀 CraftWeave Agent
+
+CraftWeave Agent (`cw-agent`) 是一个独立运行的本地 Playbook 执行器，支持从 Git 仓库拉取剧本（playbook.yaml），执行本地 shell/script 命令任务。无需 Controller、无需远程 SSH，适用于边缘节点、本地运维任务等场景。
+
+---
+
+## 📁 项目结构``
+
+`
 cw-agent/
 ├── Cargo.toml
 ├── README.md
-├── cw-agent.service              # 可选：systemd 单元文件
+├── Makefile
+├── example/
+│ └── playbook.yaml # 示例本地 playbook
+├── cw-agent.service # 可选：systemd 单元文件
 └── src/
-    ├── main.rs                  # 入口，CLI 参数解析 + 调度器入口
-    ├── scheduler.rs             # 定时/触发式拉取、执行、保存
-    ├── config.rs                # 拉取并解析远程配置（Git/HTTP 等）
-    ├── executor.rs              # 执行任务（command/copy/service 等）
-    ├── result_store.rs          # 存储执行结果（JSON / local DB）
-    └── models.rs                # 配置结构体 / 执行结果结构体
+├── main.rs # 入口，CLI 参数解析 + 调度器入口
+├── scheduler.rs # 定时/触发式拉取、执行、保存
+├── config.rs # 拉取并解析配置（Git/HTTP、本地文件）
+├── executor.rs # 执行任务（shell/script 本地运行）
+├── result_store.rs # 存储执行结果（JSON 本地落盘）
+└── models.rs # Play / Task 结构体定义
 ```
 
-目标是构建一个完全独立、本地执行的 CraftWeaveAgent，支持从 Git 同步 playbook 并执行 shell/script 任务，不依赖 controller，也不进行远程 SSH。
+## ✅ 功能目标（本地 Playbook 执行器）
 
-✅ 功能目标（本地 Playbook 执行器）
-✅ 支持从 Git 仓库拉取 playbook.yaml
-✅ 支持任务类型：shell, script（本地执行）
-✅ 支持 --oneshot 或 daemon 模式定期同步执行
-✅ 所有任务限定运行在本机（无 SSH）
+- 支持从 Git 仓库拉取 `playbook.yaml`
+- 支持任务类型：`shell`、`script`（本地执行）
+- 支持 `--oneshot` 或 `daemon` 模式定期执行
+- 所有任务限定运行在本机（无 SSH，无 controller）
+
+---
+
+## 🧩 支持命令说明
+
+| 命令格式                      | 功能说明                                               |
+|-----------------------------|--------------------------------------------------------|
+| `cw-agent oneshot`           | 一次性从 `/etc/cw-agent.conf` 拉取 Git 仓库并执行 Playbook |
+| `cw-agent daemon`            | 持续运行，按 interval 定期拉取并执行                   |
+| `cw-agent playbook --file x.yaml` | 执行指定本地 Playbook 文件（仅作用于本机）           |
+| `cw-agent status`            | 输出最近一次任务执行结果（来自 `/var/lib/cw-agent/`） |
+| `cw-agent version`           | 显示版本号信息                                        |
+
+---
+
+## 🧪 示例测试用例
+
+### 1. ✅ 本地运行示例 playbook
+
+```bash
+cw-agent playbook --file example/playbook.yaml
+内容示例：
+
+yaml
+复制
+编辑
+- name: Local Test
+  tasks:
+    - name: Print hello
+      shell: echo "Hello from CraftWeave Agent"
+
+    - name: Show time
+      shell: date
+2. ✅ 配置 Git 拉取执行
+/etc/cw-agent.conf
+repo: "https://github.com/your-org/your-repo.git"
+interval: 60
+playbook:
+  - sync/playbook.yaml
+示例 playbook.yaml 内容（在 Git 仓库中）
+yaml
+- name: System Info
+  tasks:
+    - name: Uptime
+      shell: uptime
+
+    - name: Disk usage
+      shell: df -h
+
+sudo --preserve-env=HTTPS_PROXY,HOME ./target/release/cw-agent oneshot
 
 
-# 🧩 支持命令说明
+# 🛠️ TODO（可选）
 
-命令格式	功能说明
-cw-agent --mode oneshot	一次性从 /etc/cw-agent.conf 拉取 Git 仓库并执行配置
-cw-agent --mode daemon	持续运行，从 Git 周期性拉取并执行（定期刷新）
-cw-agent playbook <path>	直接执行本地指定 Playbook 文件（只作用于本机，不依赖 Git）
-cw-agent status	输出最近一次任务的 JSON 执行结果
-cw-agent version	显示版本号
+- 支持日志落盘与 rotate
+- 支持 JSON/YAML 混合格式输入
+- 支持 cron 表达式自定义调度
+- 支持远程结果上报（WebHook/HTTP）
