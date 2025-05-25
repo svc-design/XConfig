@@ -1,3 +1,0 @@
-- name: Setup Redis Server
-  script: files/setup-redis.sh {{ cache_namespace }} {{ registry }}
-  when: inventory_hostname in groups[group]

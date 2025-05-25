@@ -1,0 +1,76 @@
+// core/executor/playbook.go
+package executor
+
+import (
+	"fmt"
+	"sync"
+
+	"craftweave/core/parser"
+	"craftweave/internal/inventory"
+	"craftweave/internal/ssh"
+)
+
+// 全局控制输出样式和 dry-run 模式
+var AggregateOutput bool
+var CheckMode bool
+
+// ExecutePlaybook 解析并执行整个 playbook
+func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
+	for _, play := range playbook {
+		fmt.Printf("\n🎯 Play: %s (hosts: %s)\n", play.Name, play.Hosts)
+
+		hosts, err := inventory.Parse(inventoryPath, play.Hosts)
+		if err != nil {
+			fmt.Printf("❌ Failed to resolve hosts: %v\n", err)
+			continue
+		}
+
+		var results []ssh.CommandResult
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+
+		for _, host := range hosts {
+			for _, task := range play.Tasks {
+				task := task // 关闭闭包引用
+				wg.Add(1)
+
+				go func(h inventory.Host) {
+					defer wg.Done()
+
+					if CheckMode {
+						fmt.Printf("%s | SKIPPED | dry-run: %s\n", h.Name, task.Name)
+						return
+					}
+
+					var res ssh.CommandResult
+					if task.Shell != "" {
+						res = ssh.RunShellCommand(h, task.Shell)
+					} else if task.Script != "" {
+						res = ssh.RunRemoteScript(h, task.Script)
+					} else {
+						res = ssh.CommandResult{
+							Host:       h.Name,
+							ReturnMsg:  "FAILED",
+							ReturnCode: 1,
+							Output:     fmt.Sprintf("Unsupported task type in '%s'", task.Name),
+						}
+					}
+
+					mu.Lock()
+					results = append(results, res)
+					mu.Unlock()
+				}(host)
+			}
+		}
+		wg.Wait()
+
+		if AggregateOutput {
+			ssh.AggregatedPrint(results)
+		} else {
+			for _, r := range results {
+				fmt.Printf("%s | %s | rc=%d >>\n%s\n", r.Host, r.ReturnMsg, r.ReturnCode, r.Output)
+			}
+		}
+	}
+}
+
