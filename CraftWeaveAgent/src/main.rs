@@ -1,17 +1,20 @@
 // File: src/main.rs
+
 mod config;
 mod executor;
 mod result_store;
 mod scheduler;
+mod models;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use crate::scheduler::run_schedule;
-use crate::config::{load_agent_config, load_from_file};
+use crate::executor::run as run_playbook;
+use crate::config::load_agent_config;
+use tokio::fs;
 
 #[derive(Parser, Debug)]
 #[command(name = "cw-agent", version)]
-#[command(about = "CraftWeave Agent - lightweight remote playbook executor")]
+#[command(about = "CraftWeave Agent - lightweight local playbook runner")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -19,12 +22,12 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Run once using config from Git repo
+    /// Run once using playbook from Git repo
     Oneshot,
     /// Run as daemon with interval from config file
     Daemon,
-    /// Apply local config file
-    Apply {
+    /// Run full playbook from file (array of plays)
+    Playbook {
         #[arg(short, long)]
         file: PathBuf,
     },
@@ -45,14 +48,22 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         Commands::Oneshot => {
-            run_schedule(true, &agent_config).await?;
+            let content = config::fetch_git_and_load_playbook(
+                &agent_config.repo,
+                "sync/playbook.yaml",
+            )
+            .await?;
+            let parsed: Vec<models::Play> = serde_yaml::from_str(&content)?;
+            let results = run_playbook(parsed).await?;
+            result_store::persist(results).await?;
         }
         Commands::Daemon => {
-            run_schedule(false, &agent_config).await?;
+            scheduler::run_schedule(&agent_config).await?;
         }
-        Commands::Apply { file } => {
-            let cfg = load_from_file(file).await?;
-            let results = executor::apply(cfg).await?;
+        Commands::Playbook { file } => {
+            let content = fs::read_to_string(file).await?;
+            let parsed: Vec<models::Play> = serde_yaml::from_str(&content)?;
+            let results = run_playbook(parsed).await?;
             result_store::persist(results).await?;
         }
         Commands::Status => {

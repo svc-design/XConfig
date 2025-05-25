@@ -2,20 +2,16 @@
 
 use crate::{config, executor, result_store};
 use crate::config::AgentConfig;
+use crate::models::Play;
 use tokio::time::{sleep, Duration};
 
-pub async fn run_schedule(once: bool, agent_config: &AgentConfig) -> anyhow::Result<()> {
-    if once {
-        let cfg = config::fetch_git_and_load_yaml(&agent_config.repo, "sync/config.yaml").await?;
-        let results = executor::apply(cfg).await?;
-        result_store::persist(results).await?;
-        return Ok(());
-    }
-
+pub async fn run_schedule(agent_config: &AgentConfig) -> anyhow::Result<()> {
     loop {
-        let cfg = config::fetch_git_and_load_yaml(&agent_config.repo, "sync/config.yaml").await?;
-        let results = executor::apply(cfg).await?;
+        let content = config::fetch_git_and_load_playbook(&agent_config.repo, "sync/playbook.yaml").await?;
+        let parsed: Vec<Play> = serde_yaml::from_str(&content)?;
+        let results = executor::run(parsed).await?;
         result_store::persist(results).await?;
+
         let interval = agent_config.interval.unwrap_or(60);
         sleep(Duration::from_secs(interval)).await;
     }
