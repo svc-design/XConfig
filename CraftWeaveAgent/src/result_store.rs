@@ -4,6 +4,9 @@ use chrono::Utc;
 use serde::Serialize;
 use std::fs;
 use std::path::Path;
+use std::fs::read_dir;
+use std::io::Read;
+use std::cmp::Reverse;
 
 #[derive(Debug, Serialize)]
 pub struct CommandResult {
@@ -20,5 +23,30 @@ pub async fn persist(results: Vec<CommandResult>) -> anyhow::Result<()> {
     let path = format!("/var/lib/cw-agent/status-{}.json", ts);
     fs::create_dir_all(Path::new("/var/lib/cw-agent"))?;
     fs::write(path, json)?;
+    Ok(())
+}
+
+pub async fn print_latest() -> anyhow::Result<()> {
+    let path = Path::new("/var/lib/cw-agent");
+    let mut entries: Vec<_> = read_dir(path)?
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .starts_with("status-")
+        })
+        .collect();
+
+    entries.sort_by_key(|e| Reverse(e.file_name().to_string_lossy().into_owned()));
+
+    if let Some(latest) = entries.first() {
+        let mut file = fs::File::open(latest.path())?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        println!("{}", contents);
+    } else {
+        println!("No status files found.");
+    }
+
     Ok(())
 }
