@@ -1,6 +1,6 @@
 // File: src/scheduler.rs
 
-use crate::{config, executor, result_store};
+use crate::{executor, result_store}; 
 use crate::config::{AgentConfig, init_or_update_repo, check_git_updated, pull_latest};
 use crate::models::Play;
 use tokio::time::{sleep, Duration};
