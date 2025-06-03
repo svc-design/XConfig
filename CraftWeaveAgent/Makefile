@@ -1,4 +1,20 @@
 BINARY=cw-agent
+OS := $(shell uname -s)
+SERVICE_PATH=/etc/systemd/system/$(BINARY).service
+PLIST_PATH=~/Library/LaunchAgents/com.craftweave.cw-agent.plist
+BINARY_PATH=/usr/local/bin/$(BINARY)
+
+ifeq ($(OS),Linux)
+	BINARY_PATH=/usr/local/bin/$(BINARY)
+endif
+
+ifeq ($(OS),Darwin)
+	BINARY_PATH=/opt/homebrew/bin/$(BINARY)
+endif
+
+ifeq ($(OS),Windows_NT)
+	BINARY_PATH=$(BINARY).exe
+endif
 
 all: build
 
@@ -35,10 +51,82 @@ build:
 	cargo build --release
 
 run:
-	cargo run -- --oneshot
+	cargo run -- oneshot
 
 install:
-	install -m 755 target/release/$(BINARY) /usr/local/bin/$(BINARY)
+	@echo "📥 Installing binary for $(OS) → $(BINARY_PATH)"
+ifeq ($(OS),Windows_NT)
+	@echo "⚠️ Windows detected. Please copy manually to a directory in your PATH:"
+	@echo "    copy target\\release\\$(BINARY).exe C:\\Program Files\\cw-agent\\"
+else
+	@install -m 755 target/release/$(BINARY) $(BINARY_PATH)
+	@echo "✅ Installed to $(BINARY_PATH)"
+endif
+
+install-service: install
+	@echo "📦 Installing $(BINARY) as a service..."
+
+	@if [ "$(OS)" = "Linux" ]; then \
+		echo "🔧 Installing systemd service on Linux..."; \
+		sudo mkdir -p /var/lib/cw-agent; \
+		sudo cp example/$(BINARY).service $(SERVICE_PATH); \
+		sudo systemctl daemon-reexec; \
+		sudo systemctl enable $(BINARY); \
+		sudo systemctl restart $(BINARY); \
+		systemctl status $(BINARY); \
+	elif [ "$(OS)" = "Darwin" ]; then \
+		echo "🔧 Installing launchd agent on macOS..."; \
+		mkdir -p /var/lib/cw-agent; \
+		cp example/$(BINARY).plist $(PLIST_PATH); \
+		launchctl unload $(PLIST_PATH) 2>/dev/null || true; \
+		launchctl load $(PLIST_PATH); \
+		launchctl start com.craftweave.cw-agent; \
+		launchctl list | grep com.craftweave.cw-agent; \
+	elif [ "$(OS)" = "Windows_NT" ]; then \
+		echo "⚠️ Windows install-service is not supported via Makefile directly."; \
+		echo "👉 Use 'sc create' or NSSM to install manually."; \
+	else \
+		echo "❌ Unsupported OS: $(OS)"; \
+		exit 1; \
+	fi
+
+	@echo "✅ install-service complete."
+
+uninstall-service:
+	@echo "🧹 Uninstalling service..."
+	@if [ "$(OS)" = "Linux" ]; then \
+		sudo systemctl stop $(BINARY); \
+		sudo systemctl disable $(BINARY); \
+		sudo rm -f $(SERVICE_PATH); \
+		sudo systemctl daemon-reexec; \
+		echo "✅ Linux systemd service uninstalled."; \
+	elif [ "$(OS)" = "Darwin" ]; then \
+		launchctl unload $(PLIST_PATH) 2>/dev/null || true; \
+		rm -f $(PLIST_PATH); \
+		echo "✅ macOS launchd agent uninstalled."; \
+	else \
+		echo "⚠️ Manual uninstall required on $(OS)."; \
+	fi
+
+start-service:
+	@echo "🚀 Starting $(BINARY) service..."
+	@if [ "$(OS)" = "Linux" ]; then sudo systemctl start $(BINARY); fi
+	@if [ "$(OS)" = "Darwin" ]; then launchctl start com.craftweave.cw-agent; fi
+
+stop-service:
+	@echo "🛑 Stopping $(BINARY) service..."
+	@if [ "$(OS)" = "Linux" ]; then sudo systemctl stop $(BINARY); fi
+	@if [ "$(OS)" = "Darwin" ]; then launchctl stop com.craftweave.cw-agent; fi
+
+restart-service:
+	@echo "♻️ Restarting $(BINARY) service..."
+	@if [ "$(OS)" = "Linux" ]; then sudo systemctl restart $(BINARY); fi
+	@if [ "$(OS)" = "Darwin" ]; then launchctl stop com.craftweave.cw-agent && launchctl start com.craftweave.cw-agent; fi
+
+logs:
+	@echo "📜 Viewing logs..."
+	@if [ "$(OS)" = "Linux" ]; then journalctl -u $(BINARY) -f; fi
+	@if [ "$(OS)" = "Darwin" ]; then tail -f /tmp/cw-agent.out /tmp/cw-agent.err; fi
 
 test:
 	cargo test
@@ -51,4 +139,3 @@ lint:
 
 clean:
 	cargo clean
-
