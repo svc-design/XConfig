@@ -8,14 +8,10 @@ use tokio::fs as tokio_fs;
 
 #[derive(Debug, Deserialize)]
 pub struct AgentConfig {
-    /// Git 仓库地址
     pub repo: String,
-
-    /// 轮询间隔（仅在 daemon 模式生效）
     pub interval: Option<u64>,
-
-    /// 要执行的 playbook 路径列表（相对于仓库根目录）
     pub playbook: Vec<String>,
+    pub branch: Option<String>,
 }
 
 /// 加载本地 agent 配置文件（例如 /etc/cw-agent.conf）
@@ -25,29 +21,47 @@ pub async fn load_agent_config(path: &str) -> anyhow::Result<AgentConfig> {
     Ok(config)
 }
 
-/// 克隆 Git 仓库并读取指定路径的 playbook.yaml 内容（作为字符串返回）
-pub async fn fetch_git_and_load_playbook(repo: &str, subpath: &str) -> anyhow::Result<String> {
-    let tmp_dir = "/tmp/cw-agent-sync";
-    let full_path = format!("{}/{}", tmp_dir, subpath);
-
-    // 每次拉取前清理临时目录
-    let _ = fs::remove_dir_all(tmp_dir);
-    fs::create_dir_all(tmp_dir)?;
-
-    // 克隆 repo（浅拷贝）
-    let status = Command::new("git")
-        .args(["clone", "--depth", "1", repo, tmp_dir])
-        .status()?;
-
-    if !status.success() {
-        anyhow::bail!("git clone failed with code: {:?}", status.code());
+/// 初始 clone 仓库（如果不存在 .git）
+pub fn init_or_update_repo(repo: &str, branch: &str, dir: &str) -> anyhow::Result<()> {
+    if !Path::new(&format!("{}/.git", dir)).exists() {
+        let _ = fs::remove_dir_all(dir);
+        fs::create_dir_all(dir)?;
+        let status = Command::new("git")
+            .args(["clone", "--branch", branch, "--depth", "1", repo, dir])
+            .status()?;
+        if !status.success() {
+            anyhow::bail!("git clone failed");
+        }
     }
-
-    if !Path::new(&full_path).exists() {
-        anyhow::bail!("playbook not found: {}", full_path);
-    }
-
-    let content = tokio_fs::read_to_string(&full_path).await?;
-    Ok(content)
+    Ok(())
 }
 
+/// 检查远程仓库是否有更新
+pub fn check_git_updated(dir: &str, branch: &str) -> anyhow::Result<bool> {
+    let fetch = Command::new("git")
+        .current_dir(dir)
+        .args(["fetch", "origin"])
+        .status()?;
+    if !fetch.success() {
+        anyhow::bail!("git fetch failed");
+    }
+
+    let diff = Command::new("git")
+        .current_dir(dir)
+        .args(["diff", "--quiet", "HEAD", &format!("origin/{}", branch)])
+        .status()?;
+
+    Ok(!diff.success()) // true 表示有变更
+}
+
+/// 拉取最新代码（用于更新 playbook）
+pub fn pull_latest(dir: &str) -> anyhow::Result<()> {
+    let pull = Command::new("git")
+        .current_dir(dir)
+        .args(["pull", "--rebase"])
+        .status()?;
+    if !pull.success() {
+        anyhow::bail!("git pull failed");
+    }
+    Ok(())
+}
