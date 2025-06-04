@@ -2,8 +2,10 @@
 package executor
 
 import (
+	"bytes"
 	"fmt"
 	"sync"
+	"text/template"
 
 	"craftweave/core/parser"
 	"craftweave/internal/inventory"
@@ -44,9 +46,21 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
 
 					var res ssh.CommandResult
 					if task.Shell != "" {
-						res = ssh.RunShellCommand(h, task.Shell)
+						rendered := task.Shell
+						if len(play.Vars) > 0 {
+							renderedTmpl, err := template.New("shell").Parse(task.Shell)
+							if err == nil {
+								var buf bytes.Buffer
+								if err := renderedTmpl.Execute(&buf, play.Vars); err == nil {
+									rendered = buf.String()
+								}
+							}
+						}
+						res = ssh.RunShellCommand(h, rendered)
 					} else if task.Script != "" {
 						res = ssh.RunRemoteScript(h, task.Script)
+					} else if task.Template != nil {
+						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, play.Vars)
 					} else {
 						res = ssh.CommandResult{
 							Host:       h.Name,
@@ -73,4 +87,3 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
 		}
 	}
 }
-

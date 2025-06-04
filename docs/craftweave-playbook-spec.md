@@ -17,12 +17,16 @@
       script: ./example/nproc.sh # ✅ script 模块：上传本地脚本并远程执行
 
     - name: Show welcome message
-      shell: echo "{{ message }}" # 🚧 预留 template 解析功能（当前不会渲染）
+      shell: echo "{{ message }}"
+
+    - name: Render remote MOTD
+      template:
+        src: ./templates/motd.tmpl
+        dest: /tmp/motd.txt
 
 ---
 
 # 🚀 TODO 支持（版本 roadmap）
-# - template: ./templates/nginx.conf.j2 → 远程路径
 # - copy: src= dest= mode=
 # - when / tags / loop 等语法糖
 # - roles:
