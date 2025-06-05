@@ -1,6 +1,9 @@
 // File: src/executor.rs
 // ---------------------
 use crate::models::{Play, Task};
+use tokio::fs;
+use handlebars::Handlebars;
+use serde_json::json;
 use crate::result_store::CommandResult;
 use tokio::process::Command;
 
@@ -8,6 +11,21 @@ use tokio::process::Command;
 pub async fn apply(tasks: Vec<Task>) -> anyhow::Result<Vec<CommandResult>> {
     let mut results = vec![];
     for task in tasks {
+        if let Some(tpl) = &task.template {
+            let tpl_content = fs::read_to_string(&tpl.src).await?;
+            let h = Handlebars::new();
+            let rendered = h.render_template(&tpl_content, &json!({}))?;
+            fs::write(&tpl.dest, rendered).await?;
+            results.push(CommandResult {
+                task: task.name,
+                stdout: format!("rendered to {}", tpl.dest),
+                stderr: String::new(),
+                success: true,
+                return_code: 0,
+            });
+            continue;
+        }
+
         let (cmd_str, cmd_type) = if let Some(shell_cmd) = &task.shell {
             (shell_cmd.clone(), "shell")
         } else if let Some(script_path) = &task.script {

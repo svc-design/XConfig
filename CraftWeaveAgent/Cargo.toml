@@ -18,3 +18,4 @@ anyhow = "1.0"
 
 # Optional local state storage
 sled = "0.34"
+handlebars = "4"

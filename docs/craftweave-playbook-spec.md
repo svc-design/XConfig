@@ -16,13 +16,18 @@
     - name: Run CPU count script
       script: ./example/nproc.sh # ✅ script 模块：上传本地脚本并远程执行
 
+    - name: Render config file
+      template:
+        src: ./templates/nginx.conf.j2
+        dest: /tmp/nginx.conf
+
     - name: Show welcome message
-      shell: echo "{{ message }}" # 🚧 预留 template 解析功能（当前不会渲染）
+      shell: echo "{{ message }}" # ✅ 支持模板变量渲染
 
 ---
 
 # 🚀 TODO 支持（版本 roadmap）
-# - template: ./templates/nginx.conf.j2 → 远程路径
+# - template: ./templates/nginx.conf.j2 → 远程路径（已支持）
 # - copy: src= dest= mode=
 # - when / tags / loop 等语法糖
 # - roles:
@@ -64,7 +69,7 @@
 # 4. 如果指定了模块字段，值必须是字符串
 # 5. 错误信息应带行号与 task 名称提示
 
-# ✅ 合法模块 key（暂支持）: shell, script
+# ✅ 合法模块 key（暂支持）: shell, script, template
 # 🚫 不合法的 key：除上述外都报错（为后续模块保留）
 
 # CraftWeave Playbook 元素定义表格
@@ -76,4 +81,5 @@
 | `tasks`  | list   | ✅ 是     | 每条任务可以是 shell、script 等     |
 | `shell`  | string | 可选      | 执行单条远程命令                   |
 | `script` | string | 可选      | 执行本地脚本并上传远程运行         |
+| `template` | map | 可选      | 渲染模板文件到目标路径             |
 | `vars`   | map    | 可选（V1）| 支持变量渲染（预留给 template 功能）|
