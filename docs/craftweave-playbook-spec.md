@@ -16,6 +16,11 @@
     - name: Run CPU count script
       script: ./example/nproc.sh # ✅ script 模块：上传本地脚本并远程执行
 
+    - name: Render config file
+      template:
+        src: ./templates/nginx.conf.j2
+        dest: /tmp/nginx.conf
+
     - name: Show welcome message
       shell: echo "{{ message }}"
 
@@ -27,6 +32,7 @@
 ---
 
 # 🚀 TODO 支持（版本 roadmap）
+# - template: ./templates/nginx.conf.j2 → 远程路径（已支持）
 # - copy: src= dest= mode=
 # - when / tags / loop 等语法糖
 # - roles:
