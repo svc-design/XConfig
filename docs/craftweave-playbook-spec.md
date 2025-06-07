@@ -6,7 +6,7 @@
 - name: Run system checks         # ✅ 可选：描述 Play
   hosts: all                     # ✅ 必需：支持 inventory 中定义的组名或 all
   gather_facts: false            # ✅ 可选：预留字段，暂不支持
-  vars:                          # ✅ 可选：为 task 提供默认变量（暂不支持模板渲染）
+  vars:                          # ✅ 可选：play 级变量，可在 shell/template 中渲染
     message: "hello world"
 
   tasks:
@@ -22,7 +22,12 @@
         dest: /tmp/nginx.conf
 
     - name: Show welcome message
-      shell: echo "{{ message }}" # ✅ 支持模板变量渲染
+      shell: echo "{{ message }}"
+
+    - name: Render remote MOTD
+      template:
+        src: ./templates/motd.tmpl
+        dest: /tmp/motd.txt
 
 ---
 
@@ -78,8 +83,8 @@
 |----------|--------|----------|------------------------------------|
 | `name`   | string | ✅ 是     | Play 或 task 的描述                 |
 | `hosts`  | string | ✅ 是     | 当前 play 作用的 inventory 主机组  |
-| `tasks`  | list   | ✅ 是     | 每条任务可以是 shell、script 等     |
+| `tasks`  | list   | ✅ 是     | 每条任务可以是 shell、script、template 等 |
 | `shell`  | string | 可选      | 执行单条远程命令                   |
 | `script` | string | 可选      | 执行本地脚本并上传远程运行         |
-| `template` | map | 可选      | 渲染模板文件到目标路径             |
-| `vars`   | map    | 可选（V1）| 支持变量渲染（预留给 template 功能）|
+| `template` | map  | 可选      | 渲染本地模板并上传至远程           |
+| `vars`   | map    | 可选（V1）| 支持在 shell 和 template 中引用     |
