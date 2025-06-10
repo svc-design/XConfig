@@ -24,13 +24,9 @@ func RunRemoteScript(h inventory.Host, scriptPath string) CommandResult {
 	encoded := base64.StdEncoding.EncodeToString(content)
 	remotePath := fmt.Sprintf("/tmp/craftweave-%d.sh", time.Now().UnixNano())
 
-	script := fmt.Sprintf(`
-		echo "%s" | base64 -d > %s && \
-		chmod +x %s && \
-		(if command -v bash >/dev/null 2>&1; then bash %s; else sh %s; fi); code=$? && \
-		rm -f %s && \
-		exit $code
-	`, encoded, remotePath, remotePath, remotePath, remotePath, remotePath)
+	script := fmt.Sprintf(
+		"echo %q | base64 -d > %s && chmod +x %s && (if command -v bash >/dev/null 2>&1; then bash %s; else sh %s; fi); code=$? && rm -f %s && exit $code",
+		encoded, remotePath, remotePath, remotePath, remotePath, remotePath)
 
 	return RunShellCommand(h, script)
 }
