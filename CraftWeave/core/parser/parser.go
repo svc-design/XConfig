@@ -135,7 +135,8 @@ func LoadPlaybook(path string) ([]Play, error) {
 }
 
 func loadRoleTasks(base, name string) ([]Task, error) {
-	dir := filepath.Join(base, "roles", name, "tasks")
+	roleDir := filepath.Join(base, "roles", name)
+	dir := filepath.Join(roleDir, "tasks")
 	path := filepath.Join(dir, "main.yaml")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		path = filepath.Join(dir, "main.yml")
@@ -147,6 +148,17 @@ func loadRoleTasks(base, name string) ([]Task, error) {
 	var tasks []Task
 	if err := yaml.Unmarshal(data, &tasks); err != nil {
 		return nil, err
+	}
+	for i := range tasks {
+		if tasks[i].Script != "" && !filepath.IsAbs(tasks[i].Script) {
+			tasks[i].Script = filepath.Join(roleDir, "scripts", tasks[i].Script)
+		}
+		if tasks[i].Template != nil && tasks[i].Template.Src != "" && !filepath.IsAbs(tasks[i].Template.Src) {
+			tasks[i].Template.Src = filepath.Join(roleDir, "templates", tasks[i].Template.Src)
+		}
+		if tasks[i].Copy != nil && tasks[i].Copy.Src != "" && !filepath.IsAbs(tasks[i].Copy.Src) {
+			tasks[i].Copy.Src = filepath.Join(roleDir, "files", tasks[i].Copy.Src)
+		}
 	}
 	return tasks, nil
 }
