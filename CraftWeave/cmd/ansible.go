@@ -2,11 +2,14 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
-	"github.com/spf13/cobra"
+	"craftweave/core/parser"
 	"craftweave/internal/inventory"
+	"craftweave/internal/modules"
 	"craftweave/internal/ssh"
+	"github.com/spf13/cobra"
 )
 
 var module, args string
@@ -25,34 +28,42 @@ var ansibleCmd = &cobra.Command{
 		var results []ssh.CommandResult
 		var mu sync.Mutex
 		var wg sync.WaitGroup
+		sem := make(chan struct{}, MaxWorkers)
 
 		for _, h := range hosts {
 			wg.Add(1)
 			go func(h inventory.Host) {
 				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
 				if CheckMode {
 					fmt.Printf("%s | SKIPPED\n", h.Name)
 					return
 				}
 
-				var res ssh.CommandResult
+				t := parser.Task{}
 				switch module {
 				case "shell":
-					res = ssh.RunShellCommand(h, args)
+					t.Shell = args
 				case "script":
-					res = ssh.RunRemoteScript(h, args)
-				default:
-					res = ssh.CommandResult{
-						Host:       h.Name,
-						ReturnMsg:  "FAILED",
-						ReturnCode: 1,
-						Output:     fmt.Sprintf("Module '%s' is not supported.", module),
+					t.Script = args
+				case "template":
+					parts := strings.SplitN(args, ":", 2)
+					if len(parts) == 2 {
+						t.Template = &parser.Template{Src: parts[0], Dest: parts[1]}
 					}
 				}
 
-				mu.Lock()
-				results = append(results, res)
-				mu.Unlock()
+				if hdl, ok := modules.GetHandler(t.Type()); ok {
+					res := hdl(modules.Context{Host: h}, t)
+					mu.Lock()
+					results = append(results, res)
+					mu.Unlock()
+				} else {
+					mu.Lock()
+					results = append(results, ssh.CommandResult{Host: h.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: fmt.Sprintf("Module '%s' is not supported.", module)})
+					mu.Unlock()
+				}
 			}(h)
 		}
 		wg.Wait()
@@ -71,6 +82,7 @@ func init() {
 	ansibleCmd.Flags().StringVarP(&InventoryPath, "inventory", "i", "hosts.yaml", "Inventory file")
 	ansibleCmd.Flags().StringVarP(&module, "module", "m", "shell", "Module to execute")
 	ansibleCmd.Flags().StringVarP(&args, "args", "a", "", "Arguments for the module")
+	ansibleCmd.Flags().IntVarP(&MaxWorkers, "forks", "f", 5, "Max parallel tasks")
 	ansibleCmd.Flags().BoolVarP(&CheckMode, "check", "C", false, "Check mode (dry-run)")
 	ansibleCmd.Flags().BoolVarP(&AggregateOutput, "aggregate", "A", false, "Aggregate identical output")
 	rootCmd.AddCommand(ansibleCmd)
