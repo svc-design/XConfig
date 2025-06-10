@@ -25,4 +25,4 @@ controller_ips=["10.10.10.10", "10.10.10.11"]
 vtap_group_id="g-P22vLIMdB6"
 
 # DeepFlow agent 安装包位置
-agent_base_dir="deepflow-agent-v6.5/deepflow-agent-for-linux"
+agent_base_dir="deepflow-agent-for-linux"

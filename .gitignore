@@ -14,3 +14,5 @@ CraftWeave/ip.list
 CraftWeave/example/scripts/ip.list
 CraftWeave/example/scripts/deepflow-agent-*
 CraftWeave/example/deepflow-agent-*
+CraftWeave/example/playbooks/deepflow-agent-*
+CraftWeave/example/playbooks/deepflow-agent-for-linux/
