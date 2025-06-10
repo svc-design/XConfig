@@ -8,12 +8,12 @@ us-proxy       ansible_host=54.183.32.0        ansible_ssh_user=ubuntu
 ca-proxy       ansible_host=3.98.174.218       ansible_ssh_user=ubuntu
 
 [all:vars]
-domain='svc.plus'
+domain=svc.plus
 ansible_port=22
 ansible_ssh_user=ubuntu
-ansible_ssh_pass=''
+ansible_ssh_pass=
 # custom var for all hosts
-env='prod'
+env=prod
 #ansible_ssh_private_key_file=~/.ssh/id_rsa
 ansible_host_key_checking=False
 
@@ -23,7 +23,7 @@ ansible_host_key_checking=False
 
 # DeepFlow agent 配置变量
 controller_ips=["10.10.10.10", "10.10.10.11"]
-vtap_group_id="g-P22vLIMdB6"
+vtap_group_id=g-P22vLIMdB6
 
 # DeepFlow agent 安装包位置
-agent_base_dir="deepflow-agent-for-linux"
+agent_base_dir=deepflow-agent-for-linux
