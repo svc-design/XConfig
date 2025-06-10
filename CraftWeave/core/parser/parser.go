@@ -7,10 +7,13 @@ type Template struct {
 }
 
 type Task struct {
-	Name     string    `yaml:"name"`
-	Shell    string    `yaml:"shell,omitempty"`
-	Script   string    `yaml:"script,omitempty"`
-	Template *Template `yaml:"template,omitempty"`
+	Name     string            `yaml:"name"`
+	Shell    string            `yaml:"shell,omitempty"`
+	Script   string            `yaml:"script,omitempty"`
+	Template *Template         `yaml:"template,omitempty"`
+	SetFact  map[string]string `yaml:"set_fact,omitempty"`
+	When     string            `yaml:"when,omitempty"`
+	Register string            `yaml:"register,omitempty"`
 }
 
 // Role reference used in Play definition

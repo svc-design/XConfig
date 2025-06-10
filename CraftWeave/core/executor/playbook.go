@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"text/template"
 
@@ -68,27 +69,48 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 			mergedVars[k] = v
 		}
 
+		varsPerHost := make(map[string]map[string]string)
+		for _, h := range hosts {
+			hv := make(map[string]string)
+			for k, v := range mergedVars {
+				hv[k] = v
+			}
+			varsPerHost[h.Name] = hv
+		}
+
 		for _, host := range hosts {
-			for _, task := range allTasks {
-				task := task // 关闭闭包引用
-				wg.Add(1)
+			wg.Add(1)
+			go func(h inventory.Host) {
+				defer wg.Done()
 
-				go func(h inventory.Host) {
-					defer wg.Done()
+				hv := varsPerHost[h.Name]
 
+				for _, task := range allTasks {
 					if CheckMode {
 						fmt.Printf("%s | SKIPPED | dry-run: %s\n", h.Name, task.Name)
-						return
+						continue
+					}
+
+					if task.When != "" && !evaluateCondition(task.When, hv) {
+						mu.Lock()
+						results = append(results, ssh.CommandResult{
+							Host:       h.Name,
+							ReturnMsg:  "SKIPPED",
+							ReturnCode: 0,
+							Output:     fmt.Sprintf("when condition '%s' not met", task.When),
+						})
+						mu.Unlock()
+						continue
 					}
 
 					var res ssh.CommandResult
 					if task.Shell != "" {
 						rendered := task.Shell
-						if len(mergedVars) > 0 {
+						if len(hv) > 0 {
 							renderedTmpl, err := template.New("shell").Parse(task.Shell)
 							if err == nil {
 								var buf bytes.Buffer
-								if err := renderedTmpl.Execute(&buf, mergedVars); err == nil {
+								if err := renderedTmpl.Execute(&buf, hv); err == nil {
 									rendered = buf.String()
 								}
 							}
@@ -97,7 +119,19 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 					} else if task.Script != "" {
 						res = ssh.RunRemoteScript(h, task.Script)
 					} else if task.Template != nil {
-						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, mergedVars)
+						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, hv)
+					} else if len(task.SetFact) > 0 {
+						for k, v := range task.SetFact {
+							val := v
+							if tmpl, err := template.New("sf").Parse(v); err == nil {
+								var buf bytes.Buffer
+								if err := tmpl.Execute(&buf, hv); err == nil {
+									val = buf.String()
+								}
+							}
+							hv[k] = val
+						}
+						res = ssh.CommandResult{Host: h.Name, ReturnMsg: "CHANGED", ReturnCode: 0, Output: "set_fact"}
 					} else {
 						res = ssh.CommandResult{
 							Host:       h.Name,
@@ -107,11 +141,28 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 						}
 					}
 
+					if task.Register != "" {
+						hv[task.Register] = strings.TrimSpace(res.Output)
+					}
+
+					if len(task.SetFact) > 0 && (task.Shell != "" || task.Script != "" || task.Template != nil) {
+						for k, v := range task.SetFact {
+							val := v
+							if tmpl, err := template.New("sf").Parse(v); err == nil {
+								var buf bytes.Buffer
+								if err := tmpl.Execute(&buf, hv); err == nil {
+									val = buf.String()
+								}
+							}
+							hv[k] = val
+						}
+					}
+
 					mu.Lock()
 					results = append(results, res)
 					mu.Unlock()
-				}(host)
-			}
+				}
+			}(host)
 		}
 		wg.Wait()
 
@@ -123,4 +174,25 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 			}
 		}
 	}
+}
+
+func evaluateCondition(cond string, vars map[string]string) bool {
+	cond = strings.TrimSpace(cond)
+	if cond == "" {
+		return true
+	}
+	if strings.Contains(cond, "==") {
+		parts := strings.SplitN(cond, "==", 2)
+		left := strings.TrimSpace(parts[0])
+		right := strings.Trim(strings.TrimSpace(parts[1]), "\"'")
+		return vars[left] == right
+	}
+	if strings.Contains(cond, "!=") {
+		parts := strings.SplitN(cond, "!=", 2)
+		left := strings.TrimSpace(parts[0])
+		right := strings.Trim(strings.TrimSpace(parts[1]), "\"'")
+		return vars[left] != right
+	}
+	val, ok := vars[cond]
+	return ok && val != "" && val != "false"
 }
