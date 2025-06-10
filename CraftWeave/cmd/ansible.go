@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/spf13/cobra"
 	"craftweave/internal/inventory"
 	"craftweave/internal/ssh"
+	"github.com/spf13/cobra"
 )
 
 var module, args string
@@ -39,6 +39,8 @@ var ansibleCmd = &cobra.Command{
 				switch module {
 				case "shell":
 					res = ssh.RunShellCommand(h, args)
+				case "command":
+					res = ssh.RunCommand(h, args)
 				case "script":
 					res = ssh.RunRemoteScript(h, args)
 				default:

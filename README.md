@@ -7,7 +7,7 @@
 ## 🧩 特性概览
 
 ### ✅ 控制端（Go 实现）
-- 🛠️ `craftweave ansible`：类 Ansible 远程命令执行
+- 🛠️ `craftweave ansible`：类 Ansible 远程命令执行（支持 shell/command 模块）
 - 📜 `craftweave playbook`：YAML 多步骤任务编排（支持 template 模块）
 - 🔐 `craftweave vault`：加解密配置 (TODO)
 - 🧠 `craftweave cmdb`：导出拓扑图数据库 (TODO)
@@ -26,24 +26,29 @@
 
 ```
 [all]
-demo           ansible_host=192.168.124.77     ansible_ssh_user=shenlan
+demo           ansible_host=192.168.124.77     ansible_ssh_user=shenlan role=demo
 cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
 global-hub     ansible_host=2.15.135.215       ansible_ssh_user=centos
 
 [all:vars]
 ansible_port=22
 ansible_ssh_private_key_file=~/.ssh/id_rsa
+env='prod'
 ```
 
-3. 远程执行命令（类似 Ansible）
+3. 远程执行命令（Shell 模块）
 
 craftweave ansible all -i example/inventory -m shell -a 'id'
 
-4. 输出聚合展示（推荐用于大规模场景
+4. 远程执行命令（Command 模块）
+
+craftweave ansible all -i example/inventory -m command -a '/usr/bin/id'
+
+5. 输出聚合展示（推荐用于大规模场景
 
 craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
 
-5. 上传并执行脚本
+6. 上传并执行脚本
 
 craftweave ansible all -i example/inventory -m script -a example/uname.sh
 

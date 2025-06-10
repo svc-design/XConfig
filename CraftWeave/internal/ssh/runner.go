@@ -5,12 +5,22 @@ import (
 	"os"
 	"time"
 
-	"golang.org/x/crypto/ssh"
 	"craftweave/internal/inventory"
+	"golang.org/x/crypto/ssh"
 )
 
 // RunShellCommand 使用 Go 原生 SSH 实现，优先使用私钥，失败时回退密码认证
 func RunShellCommand(h inventory.Host, command string) CommandResult {
+	bashCmd := fmt.Sprintf("bash -c %q", command)
+	return runCommandInternal(h, bashCmd)
+}
+
+// RunCommand executes a remote command directly without shell expansion
+func RunCommand(h inventory.Host, command string) CommandResult {
+	return runCommandInternal(h, command)
+}
+
+func runCommandInternal(h inventory.Host, command string) CommandResult {
 	var authMethods []ssh.AuthMethod
 	var authMethodUsed string
 
