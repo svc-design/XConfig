@@ -13,9 +13,15 @@ type Task struct {
 	Template *Template `yaml:"template,omitempty"`
 }
 
+// Role reference used in Play definition
+type Role struct {
+	Role string `yaml:"role"`
+}
+
 type Play struct {
 	Name  string            `yaml:"name"`
 	Hosts string            `yaml:"hosts"`
 	Vars  map[string]string `yaml:"vars,omitempty"`
 	Tasks []Task            `yaml:"tasks"`
+	Roles []Role            `yaml:"roles,omitempty"`
 }

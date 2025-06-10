@@ -4,6 +4,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -42,7 +43,7 @@ var playbookCmd = &cobra.Command{
 		for k, v := range ExtraVars {
 			mergedVars[k] = v
 		}
-		executor.ExecutePlaybook(plays, inventoryPath, mergedVars)
+		executor.ExecutePlaybook(plays, inventoryPath, filepath.Dir(file), mergedVars)
 	},
 }
 
