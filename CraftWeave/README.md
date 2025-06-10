@@ -6,7 +6,7 @@
 
 ## 🧩 特性
 
-- 🛠️ `craftweave ansible`：执行单条远程命令（支持 shell 模块）
+- 🛠️ `craftweave ansible`：执行单条远程命令（支持 shell/command 模块）
 - 📜 `craftweave playbook`：运行 YAML Playbook
 - 🔐 `craftweave vault`：加解密配置(Todo)
 - 🧠 `craftweave cmdb`：输出图数据库模型(Todo)
@@ -30,8 +30,9 @@ cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
 ansible_port=22
 ansible_ssh_private_key_file=~/.ssh/id_rsa
 
-3. 执行命令： ./craftweave ansible all -i example/inventory -m shell -a 'id'
-4. 输出示例：
+3. 执行命令（shell 模块）： ./craftweave ansible all -i example/inventory -m shell -a 'id'
+4. 执行命令（command 模块）： ./craftweave ansible all -i example/inventory -m command -a '/usr/bin/id'
+5. 输出示例：
 ```
 🧶 欢迎使用：CraftWeave - 任务与架构编织工具
 deepflow-demo | CHANGED | rc=0 >>
