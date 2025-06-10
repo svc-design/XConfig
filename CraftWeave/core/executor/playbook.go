@@ -45,6 +45,7 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 				fmt.Printf("❌ Failed to parse role %s: %v\n", role.Role, err)
 				continue
 			}
+
                        for i := range roleTasks {
                                if roleTasks[i].Script != "" && !filepath.IsAbs(roleTasks[i].Script) {
                                        scriptPath := filepath.Join(roleDir, roleTasks[i].Script)
@@ -157,6 +158,26 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 						res = ssh.RunRemoteScript(h, task.Script)
 					} else if task.Template != nil {
 						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, mergedVars)
+					} else if task.Copy != nil {
+						src := task.Copy.Src
+						dest := task.Copy.Dest
+						if len(mergedVars) > 0 {
+							// render src and dest with variables if needed
+							for _, field := range []struct {
+								val *string
+							}{
+								{&src}, {&dest},
+							} {
+								tmpl, err := template.New("copy").Parse(*field.val)
+								if err == nil {
+									var buf bytes.Buffer
+									if err := tmpl.Execute(&buf, mergedVars); err == nil {
+										*field.val = buf.String()
+									}
+								}
+							}
+						}
+						res = ssh.CopyFile(h, src, dest, task.Copy.Mode)
 					} else if task.Apt != nil {
 						if task.Apt.State == "" || task.Apt.State == "present" {
 							res = ssh.InstallAptPackage(h, task.Apt.Name)
