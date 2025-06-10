@@ -1,5 +1,5 @@
 - name: Gather facts
-  setup:
+  setup: true
 
 - name: Detect init system
   set_fact:
