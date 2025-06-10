@@ -60,44 +60,94 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 		var wg sync.WaitGroup
 
 		// merge play vars with extra vars (extra vars override)
-		mergedVars := make(map[string]string)
+		playVars := make(map[string]interface{})
 		for k, v := range play.Vars {
-			mergedVars[k] = v
+			playVars[k] = v
 		}
 		for k, v := range extraVars {
-			mergedVars[k] = v
+			playVars[k] = v
 		}
 
 		for _, host := range hosts {
-			for _, task := range allTasks {
-				task := task // 关闭闭包引用
-				wg.Add(1)
+			host := host
+			wg.Add(1)
+			go func(h inventory.Host) {
+				defer wg.Done()
 
-				go func(h inventory.Host) {
-					defer wg.Done()
+				hostVars := make(map[string]interface{})
+				for k, v := range playVars {
+					hostVars[k] = v
+				}
 
+				for _, task := range allTasks {
 					if CheckMode {
 						fmt.Printf("%s | SKIPPED | dry-run: %s\n", h.Name, task.Name)
-						return
+						continue
 					}
 
 					var res ssh.CommandResult
+
+					// Handle shell module
 					if task.Shell != "" {
 						rendered := task.Shell
-						if len(mergedVars) > 0 {
+						if len(hostVars) > 0 {
 							renderedTmpl, err := template.New("shell").Parse(task.Shell)
 							if err == nil {
 								var buf bytes.Buffer
-								if err := renderedTmpl.Execute(&buf, mergedVars); err == nil {
+								if err := renderedTmpl.Execute(&buf, hostVars); err == nil {
 									rendered = buf.String()
 								}
 							}
 						}
 						res = ssh.RunShellCommand(h, rendered)
-					} else if task.Script != "" {
+					} else if task.Script != "" { // script module
 						res = ssh.RunRemoteScript(h, task.Script)
 					} else if task.Template != nil {
-						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, mergedVars)
+						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, hostVars)
+					} else if task.Stat != nil { // stat module
+						path := task.Stat.Path
+						if len(hostVars) > 0 {
+							tmpl, err := template.New("stat").Parse(task.Stat.Path)
+							if err == nil {
+								var buf bytes.Buffer
+								if err := tmpl.Execute(&buf, hostVars); err == nil {
+									path = buf.String()
+								}
+							}
+						}
+						exists, sr := ssh.Stat(h, path)
+						res = sr
+						if task.Register != "" {
+							hostVars[task.Register] = map[string]interface{}{"stat": map[string]interface{}{"exists": exists}}
+						}
+					} else if task.Fail != nil { // fail module
+						msg := task.Fail.Msg
+						if len(hostVars) > 0 {
+							tmpl, err := template.New("fail").Parse(task.Fail.Msg)
+							if err == nil {
+								var buf bytes.Buffer
+								if err := tmpl.Execute(&buf, hostVars); err == nil {
+									msg = buf.String()
+								}
+							}
+						}
+						res = ssh.CommandResult{Host: h.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: msg}
+						mu.Lock()
+						results = append(results, res)
+						mu.Unlock()
+						break
+					} else if task.Debug != nil { // debug module
+						msg := task.Debug.Msg
+						if len(hostVars) > 0 {
+							tmpl, err := template.New("debug").Parse(task.Debug.Msg)
+							if err == nil {
+								var buf bytes.Buffer
+								if err := tmpl.Execute(&buf, hostVars); err == nil {
+									msg = buf.String()
+								}
+							}
+						}
+						res = ssh.CommandResult{Host: h.Name, ReturnMsg: "DEBUG", ReturnCode: 0, Output: msg}
 					} else {
 						res = ssh.CommandResult{
 							Host:       h.Name,
@@ -110,8 +160,8 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 					mu.Lock()
 					results = append(results, res)
 					mu.Unlock()
-				}(host)
-			}
+				}
+			}(host)
 		}
 		wg.Wait()
 
