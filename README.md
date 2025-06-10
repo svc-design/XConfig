@@ -7,8 +7,8 @@
 ## 🧩 特性概览
 
 ### ✅ 控制端（Go 实现）
-- 🛠️ `craftweave ansible`：类 Ansible 远程命令执行（支持 shell/command 模块）
-- 📜 `craftweave playbook`：YAML 多步骤任务编排（支持 template 模块）
+- 🛠️ `craftweave ansible`：类 Ansible 远程命令执行（内置 shell、command、copy、service 等模块）
+- 📜 `craftweave playbook`：YAML 多步骤任务编排（支持 template、setup、apt/yum 等模块）
 - 🔐 `craftweave vault`：加解密配置 (TODO)
 - 🧠 `craftweave cmdb`：导出拓扑图数据库 (TODO)
 - 🔌 `craftweave plugin`：支持插件执行，预留 WASM 接口 (TODO)

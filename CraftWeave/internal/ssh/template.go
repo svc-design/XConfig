@@ -47,3 +47,14 @@ func RenderTemplate(h inventory.Host, src, dest string, data map[string]string) 
 
 	return RunShellCommand(h, script)
 }
+
+// UploadFile copies a local file to the remote host at dest path.
+func UploadFile(h inventory.Host, src, dest string) CommandResult {
+	content, err := os.ReadFile(src)
+	if err != nil {
+		return CommandResult{Host: h.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: fmt.Sprintf("read file failed: %v", err)}
+	}
+	encoded := base64.StdEncoding.EncodeToString(content)
+	script := fmt.Sprintf("echo \"%s\" | base64 -d > %s", encoded, dest)
+	return RunShellCommand(h, script)
+}
