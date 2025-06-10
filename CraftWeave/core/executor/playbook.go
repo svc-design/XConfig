@@ -2,12 +2,13 @@
 package executor
 
 import (
-	"bytes"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sync"
-	"text/template"
+        "bytes"
+        "fmt"
+        "os"
+        "path/filepath"
+        "strings"
+        "sync"
+        "text/template"
 
 	"gopkg.in/yaml.v3"
 
@@ -96,9 +97,15 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 						res = ssh.RunShellCommand(h, rendered)
 					} else if task.Script != "" {
 						res = ssh.RunRemoteScript(h, task.Script)
-					} else if task.Template != nil {
-						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, mergedVars)
-					} else {
+                                        } else if task.Template != nil {
+                                                res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, mergedVars)
+                                        } else if task.Systemd != nil {
+                                                cmd := buildSystemdCmd(*task.Systemd)
+                                                res = ssh.RunShellCommand(h, cmd)
+                                        } else if task.Service != nil {
+                                                cmd := buildServiceCmd(*task.Service)
+                                                res = ssh.RunShellCommand(h, cmd)
+                                        } else {
 						res = ssh.CommandResult{
 							Host:       h.Name,
 							ReturnMsg:  "FAILED",
@@ -118,9 +125,62 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 		if AggregateOutput {
 			ssh.AggregatedPrint(results)
 		} else {
-			for _, r := range results {
-				fmt.Printf("%s | %s | rc=%d >>\n%s\n", r.Host, r.ReturnMsg, r.ReturnCode, r.Output)
-			}
-		}
-	}
+                for _, r := range results {
+                        fmt.Printf("%s | %s | rc=%d >>\n%s\n", r.Host, r.ReturnMsg, r.ReturnCode, r.Output)
+                }
+        }
+}
+
+func buildSystemdCmd(s parser.Service) string {
+       var cmds []string
+       state := strings.ToLower(s.State)
+       switch state {
+       case "started", "start":
+               cmds = append(cmds, fmt.Sprintf("systemctl start %s", s.Name))
+       case "stopped", "stop":
+               cmds = append(cmds, fmt.Sprintf("systemctl stop %s", s.Name))
+       case "restarted", "restart":
+               cmds = append(cmds, fmt.Sprintf("systemctl restart %s", s.Name))
+       case "reloaded", "reload":
+               cmds = append(cmds, fmt.Sprintf("systemctl reload %s", s.Name))
+       default:
+               if state != "" {
+                       cmds = append(cmds, fmt.Sprintf("systemctl %s %s", state, s.Name))
+               }
+       }
+       if s.Enabled != nil {
+               if *s.Enabled {
+                       cmds = append(cmds, fmt.Sprintf("systemctl enable %s", s.Name))
+               } else {
+                       cmds = append(cmds, fmt.Sprintf("systemctl disable %s", s.Name))
+               }
+       }
+       return strings.Join(cmds, " && ")
+}
+
+func buildServiceCmd(s parser.Service) string {
+       var cmds []string
+       state := strings.ToLower(s.State)
+       switch state {
+       case "started", "start":
+               cmds = append(cmds, fmt.Sprintf("service %s start", s.Name))
+       case "stopped", "stop":
+               cmds = append(cmds, fmt.Sprintf("service %s stop", s.Name))
+       case "restarted", "restart":
+               cmds = append(cmds, fmt.Sprintf("service %s restart", s.Name))
+       case "reloaded", "reload":
+               cmds = append(cmds, fmt.Sprintf("service %s reload", s.Name))
+       default:
+               if state != "" {
+                       cmds = append(cmds, fmt.Sprintf("service %s %s", s.Name, state))
+               }
+       }
+       if s.Enabled != nil {
+               if *s.Enabled {
+                       cmds = append(cmds, fmt.Sprintf("chkconfig %s on || update-rc.d %s enable", s.Name, s.Name))
+               } else {
+                       cmds = append(cmds, fmt.Sprintf("chkconfig %s off || update-rc.d %s disable", s.Name, s.Name))
+               }
+       }
+       return strings.Join(cmds, " && ")
 }

@@ -73,7 +73,7 @@
 # 4. 如果指定了模块字段，值必须是字符串
 # 5. 错误信息应带行号与 task 名称提示
 
-# ✅ 合法模块 key（暂支持）: shell, script, template
+# ✅ 合法模块 key（暂支持）: shell, script, template, systemd, service
 # 🚫 不合法的 key：除上述外都报错（为后续模块保留）
 
 # CraftWeave Playbook 元素定义表格
@@ -82,9 +82,11 @@
 |----------|--------|----------|------------------------------------|
 | `name`   | string | ✅ 是     | Play 或 task 的描述                 |
 | `hosts`  | string | ✅ 是     | 当前 play 作用的 inventory 主机组  |
-| `tasks`  | list   | ✅ 是     | 每条任务可以是 shell、script、template 等 |
+| `tasks`  | list   | ✅ 是     | 每条任务可以是 shell、script、template、systemd、service 等 |
 | `shell`  | string | 可选      | 执行单条远程命令                   |
 | `script` | string | 可选      | 执行本地脚本并上传远程运行         |
 | `template` | map  | 可选      | 渲染本地模板并上传至远程           |
+| `systemd` | map | 可选 | 管理 systemd 服务（name/state/enabled） |
+| `service` | map | 可选 | 使用 service/chkconfig 管理服务 |
 | `vars`   | map    | 可选（V1）| 支持在 shell 和 template 中引用     |
 | `roles`  | list  | 可选      | 引用 role 名称，自动加载其 tasks    |
