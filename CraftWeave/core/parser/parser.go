@@ -8,6 +8,7 @@ type Template struct {
 
 type Task struct {
 	Name     string    `yaml:"name"`
+	Command  string    `yaml:"command,omitempty"`
 	Shell    string    `yaml:"shell,omitempty"`
 	Script   string    `yaml:"script,omitempty"`
 	Template *Template `yaml:"template,omitempty"`

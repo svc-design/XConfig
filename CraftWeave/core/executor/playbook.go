@@ -82,7 +82,19 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 					}
 
 					var res ssh.CommandResult
-					if task.Shell != "" {
+					if task.Command != "" {
+						rendered := task.Command
+						if len(mergedVars) > 0 {
+							renderedTmpl, err := template.New("command").Parse(task.Command)
+							if err == nil {
+								var buf bytes.Buffer
+								if err := renderedTmpl.Execute(&buf, mergedVars); err == nil {
+									rendered = buf.String()
+								}
+							}
+						}
+						res = ssh.RunCommand(h, rendered)
+					} else if task.Shell != "" {
 						rendered := task.Shell
 						if len(mergedVars) > 0 {
 							renderedTmpl, err := template.New("shell").Parse(task.Shell)
