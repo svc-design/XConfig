@@ -22,6 +22,9 @@ type Task struct {
 	Copy     *Copy     `yaml:"copy,omitempty"`
 	Apt      *Package  `yaml:"apt,omitempty"`
 	Yum      *Package  `yaml:"yum,omitempty"`
+	SetFact  map[string]string `yaml:"set_fact,omitempty"`
+	When     string            `yaml:"when,omitempty"`
+	Register string            `yaml:"register,omitempty"`
 }
 
 // Package defines a simple package installation task

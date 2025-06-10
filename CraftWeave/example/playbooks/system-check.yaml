@@ -13,3 +13,15 @@
 
     - name: Ensure uptime visible
       shell: pwd
+
+    - name: Get kernel
+      shell: uname -s
+      register: kernel
+
+    - name: Set greet variable
+      set_fact:
+        greet: Hello
+
+    - name: Echo greeting on Linux
+      shell: echo "{{ greet }}"
+      when: kernel == "Linux"

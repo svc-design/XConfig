@@ -32,6 +32,18 @@
         src: ./templates/motd.tmpl
         dest: /tmp/motd.txt
 
+    - name: Get kernel name
+      shell: uname -s
+      register: kernel
+
+    - name: Set greeting
+      set_fact:
+        greet: Hello
+
+    - name: Echo greeting when Linux
+      shell: echo "{{ greet }}"
+      when: kernel == "Linux"
+
   roles:
     - role: common
 
@@ -39,7 +51,7 @@
 
 # 🚀 TODO 支持（版本 roadmap）
 # - copy: src= dest= mode=
-# - when / tags / loop 等语法糖
+# - tags / loop 等语法糖
 
 ---
 
@@ -92,4 +104,7 @@
 | `script` | string | 可选      | 执行本地脚本并上传远程运行         |
 | `template` | map  | 可选      | 渲染本地模板并上传至远程           |
 | `vars`   | map    | 可选（V1）| 支持在 shell 和 template 中引用     |
-| `roles`  | list  | 可选      | 引用 role 名称，自动加载其 tasks    |
+| `roles`  | list   | 可选      | 引用 role 名称，自动加载其 tasks    |
+| `register` | string | 可选     | 保存命令输出供后续任务引用         |
+| `set_fact` | map    | 可选     | 自定义变量赋值                      |
+| `when`   | string | 可选      | 条件表达式，满足时执行任务           |
