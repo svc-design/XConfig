@@ -21,7 +21,7 @@ var AggregateOutput bool
 var CheckMode bool
 
 // ExecutePlaybook 解析并执行整个 playbook
-func ExecutePlaybook(playbook []parser.Play, inventoryPath, baseDir string, extraVars map[string]string) {
+func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir string, extraVars map[string]string) {
 	for _, play := range playbook {
 		fmt.Printf("\n🎯 Play: %s (hosts: %s)\n", play.Name, play.Hosts)
 
