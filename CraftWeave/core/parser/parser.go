@@ -8,9 +8,18 @@ type Template struct {
 
 type Task struct {
 	Name     string    `yaml:"name"`
+	Command  string    `yaml:"command,omitempty"`
 	Shell    string    `yaml:"shell,omitempty"`
 	Script   string    `yaml:"script,omitempty"`
 	Template *Template `yaml:"template,omitempty"`
+	Apt      *Package  `yaml:"apt,omitempty"`
+	Yum      *Package  `yaml:"yum,omitempty"`
+}
+
+// Package defines a simple package installation task
+type Package struct {
+	Name  string `yaml:"name"`
+	State string `yaml:"state,omitempty"`
 }
 
 // Role reference used in Play definition

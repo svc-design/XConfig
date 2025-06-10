@@ -13,6 +13,9 @@
     - name: Show hostname        # ✅ 可选：描述任务
       shell: hostname            # ✅ shell 模块，执行远程 shell 命令
 
+    - name: List root directory
+      command: ls /
+
     - name: Run CPU count script
       script: ./example/nproc.sh # ✅ script 模块：上传本地脚本并远程执行
 
@@ -73,7 +76,7 @@
 # 4. 如果指定了模块字段，值必须是字符串
 # 5. 错误信息应带行号与 task 名称提示
 
-# ✅ 合法模块 key（暂支持）: shell, script, template
+# ✅ 合法模块 key（暂支持）: shell, command, script, template
 # 🚫 不合法的 key：除上述外都报错（为后续模块保留）
 
 # CraftWeave Playbook 元素定义表格
@@ -84,7 +87,8 @@
 | `hosts`  | string | ✅ 是     | 当前 play 作用的 inventory 主机组  |
 | `gather_facts` | bool | 可选      | 是否自动收集系统信息，默认 true |
 | `tasks`  | list   | ✅ 是     | 每条任务可以是 shell、script、template 等 |
-| `shell`  | string | 可选      | 执行单条远程命令                   |
+| `shell`  | string | 可选      | 使用 bash 解释执行远程命令           |
+| `command` | string | 可选      | 直接执行远程命令（无 shell 展开）   |
 | `script` | string | 可选      | 执行本地脚本并上传远程运行         |
 | `template` | map  | 可选      | 渲染本地模板并上传至远程           |
 | `vars`   | map    | 可选（V1）| 支持在 shell 和 template 中引用     |

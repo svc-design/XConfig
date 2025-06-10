@@ -8,5 +8,8 @@
     - name: Run CPU count script
       script: ./example/nproc.sh
 
+    - name: Show uptime via command
+      command: /usr/bin/uptime
+
     - name: Ensure uptime visible
       shell: pwd

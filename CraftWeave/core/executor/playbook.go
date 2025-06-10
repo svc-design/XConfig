@@ -32,28 +32,43 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 		}
 
 		allTasks := append([]parser.Task{}, play.Tasks...)
-		for _, role := range play.Roles {
-			rolePath := filepath.Join(baseDir, "roles", role.Role, "tasks", "main.yaml")
-			data, err := os.ReadFile(rolePath)
-			if err != nil {
-				fmt.Printf("❌ Failed to load role %s: %v\n", role.Role, err)
-				continue
-			}
-			var roleTasks []parser.Task
+               for _, role := range play.Roles {
+                       roleDir := filepath.Join(baseDir, "roles", role.Role)
+                       rolePath := filepath.Join(roleDir, "tasks", "main.yaml")
+                       data, err := os.ReadFile(rolePath)
+                       if err != nil {
+                               fmt.Printf("❌ Failed to load role %s: %v\n", role.Role, err)
+                               continue
+                       }
+                       var roleTasks []parser.Task
 			if err := yaml.Unmarshal(data, &roleTasks); err != nil {
 				fmt.Printf("❌ Failed to parse role %s: %v\n", role.Role, err)
 				continue
 			}
-			for i := range roleTasks {
-				if roleTasks[i].Script != "" && !filepath.IsAbs(roleTasks[i].Script) {
-					roleTasks[i].Script = filepath.Join(baseDir, "roles", role.Role, roleTasks[i].Script)
-				}
-				if roleTasks[i].Template != nil && roleTasks[i].Template.Src != "" && !filepath.IsAbs(roleTasks[i].Template.Src) {
-					roleTasks[i].Template.Src = filepath.Join(baseDir, "roles", role.Role, roleTasks[i].Template.Src)
-				}
-			}
-			allTasks = append(allTasks, roleTasks...)
-		}
+                       for i := range roleTasks {
+                               if roleTasks[i].Script != "" && !filepath.IsAbs(roleTasks[i].Script) {
+                                       scriptPath := filepath.Join(roleDir, roleTasks[i].Script)
+                                       if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+                                               alt := filepath.Join(roleDir, "scripts", roleTasks[i].Script)
+                                               if _, err := os.Stat(alt); err == nil {
+                                                       scriptPath = alt
+                                               }
+                                       }
+                                       roleTasks[i].Script = scriptPath
+                               }
+                               if roleTasks[i].Template != nil && roleTasks[i].Template.Src != "" && !filepath.IsAbs(roleTasks[i].Template.Src) {
+                                       tplPath := filepath.Join(roleDir, roleTasks[i].Template.Src)
+                                       if _, err := os.Stat(tplPath); os.IsNotExist(err) {
+                                               alt := filepath.Join(roleDir, "templates", roleTasks[i].Template.Src)
+                                               if _, err := os.Stat(alt); err == nil {
+                                                       tplPath = alt
+                                               }
+                                       }
+                                       roleTasks[i].Template.Src = tplPath
+                               }
+                       }
+                       allTasks = append(allTasks, roleTasks...)
+               }
 
 		var results []ssh.CommandResult
 		var mu sync.Mutex
@@ -87,12 +102,25 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 				go func(h inventory.Host) {
 					defer wg.Done()
 
+					// merge host vars -> play vars -> extra vars (later overrides)
+					mergedVars := make(map[string]string)
+					for k, v := range h.Vars {
+						mergedVars[k] = v
+					}
+					for k, v := range play.Vars {
+						mergedVars[k] = v
+					}
+					for k, v := range extraVars {
+						mergedVars[k] = v
+					}
+
 					if CheckMode {
 						fmt.Printf("%s | SKIPPED | dry-run: %s\n", h.Name, task.Name)
 						return
 					}
 
 					var res ssh.CommandResult
+
 					mergedVars := make(map[string]string)
 					for k, v := range hostFacts[h.Name] {
 						mergedVars[k] = v
@@ -101,7 +129,19 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 						mergedVars[k] = v
 					}
 
-					if task.Shell != "" {
+					if task.Command != "" {
+						rendered := task.Command
+						if len(mergedVars) > 0 {
+							renderedTmpl, err := template.New("command").Parse(task.Command)
+							if err == nil {
+								var buf bytes.Buffer
+								if err := renderedTmpl.Execute(&buf, mergedVars); err == nil {
+									rendered = buf.String()
+								}
+							}
+						}
+						res = ssh.RunCommand(h, rendered)
+					} else if task.Shell != "" {
 						rendered := task.Shell
 						if len(mergedVars) > 0 {
 							renderedTmpl, err := template.New("shell").Parse(task.Shell)
@@ -117,6 +157,18 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 						res = ssh.RunRemoteScript(h, task.Script)
 					} else if task.Template != nil {
 						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, mergedVars)
+					} else if task.Apt != nil {
+						if task.Apt.State == "" || task.Apt.State == "present" {
+							res = ssh.InstallAptPackage(h, task.Apt.Name)
+						} else {
+							res = ssh.CommandResult{Host: h.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: fmt.Sprintf("unsupported state '%s'", task.Apt.State)}
+						}
+					} else if task.Yum != nil {
+						if task.Yum.State == "" || task.Yum.State == "present" {
+							res = ssh.InstallYumPackage(h, task.Yum.Name)
+						} else {
+							res = ssh.CommandResult{Host: h.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: fmt.Sprintf("unsupported state '%s'", task.Yum.State)}
+						}
 					} else {
 						res = ssh.CommandResult{
 							Host:       h.Name,
