@@ -75,6 +75,26 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 		var mu sync.Mutex
 		var wg sync.WaitGroup
 
+		// merge play vars with extra vars (extra vars override)
+		playVars := make(map[string]string)
+		for k, v := range play.Vars {
+			playVars[k] = v
+		}
+		for k, v := range extraVars {
+			playVars[k] = v
+		}
+
+		hostFacts := make(map[string]map[string]string)
+		gather := true
+		if play.GatherFacts != nil {
+			gather = *play.GatherFacts
+		}
+		if gather {
+			for _, h := range hosts {
+				hostFacts[h.Name] = ssh.GatherFacts(h)
+			}
+		}
+
 		for _, host := range hosts {
 			for _, task := range allTasks {
 				task := task // 关闭闭包引用
@@ -101,6 +121,15 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 					}
 
 					var res ssh.CommandResult
+
+					mergedVars := make(map[string]string)
+					for k, v := range hostFacts[h.Name] {
+						mergedVars[k] = v
+					}
+					for k, v := range playVars {
+						mergedVars[k] = v
+					}
+
 					if task.Command != "" {
 						rendered := task.Command
 						if len(mergedVars) > 0 {
@@ -149,6 +178,18 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 							}
 						}
 						res = ssh.CopyFile(h, src, dest, task.Copy.Mode)
+					} else if task.Apt != nil {
+						if task.Apt.State == "" || task.Apt.State == "present" {
+							res = ssh.InstallAptPackage(h, task.Apt.Name)
+						} else {
+							res = ssh.CommandResult{Host: h.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: fmt.Sprintf("unsupported state '%s'", task.Apt.State)}
+						}
+					} else if task.Yum != nil {
+						if task.Yum.State == "" || task.Yum.State == "present" {
+							res = ssh.InstallYumPackage(h, task.Yum.Name)
+						} else {
+							res = ssh.CommandResult{Host: h.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: fmt.Sprintf("unsupported state '%s'", task.Yum.State)}
+						}
 					} else {
 						res = ssh.CommandResult{
 							Host:       h.Name,

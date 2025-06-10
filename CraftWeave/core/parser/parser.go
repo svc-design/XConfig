@@ -20,6 +20,14 @@ type Task struct {
 	Script   string    `yaml:"script,omitempty"`
 	Template *Template `yaml:"template,omitempty"`
 	Copy     *Copy     `yaml:"copy,omitempty"`
+	Apt      *Package  `yaml:"apt,omitempty"`
+	Yum      *Package  `yaml:"yum,omitempty"`
+}
+
+// Package defines a simple package installation task
+type Package struct {
+	Name  string `yaml:"name"`
+	State string `yaml:"state,omitempty"`
 }
 
 // Role reference used in Play definition
@@ -28,9 +36,10 @@ type Role struct {
 }
 
 type Play struct {
-	Name  string            `yaml:"name"`
-	Hosts string            `yaml:"hosts"`
-	Vars  map[string]string `yaml:"vars,omitempty"`
-	Tasks []Task            `yaml:"tasks"`
-	Roles []Role            `yaml:"roles,omitempty"`
+	Name        string            `yaml:"name"`
+	Hosts       string            `yaml:"hosts"`
+	GatherFacts *bool             `yaml:"gather_facts,omitempty"`
+	Vars        map[string]string `yaml:"vars,omitempty"`
+	Tasks       []Task            `yaml:"tasks"`
+	Roles       []Role            `yaml:"roles,omitempty"`
 }
