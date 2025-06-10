@@ -79,6 +79,7 @@ chmod +x example/*.sh
 
 参数	描述
 --aggregate, -A	聚合输出相同结果的主机，适用于大规模展示
+--extra-vars, -e  运行时传入变量，覆盖 playbook 中的 vars
 
 # 📁 项目结构
 

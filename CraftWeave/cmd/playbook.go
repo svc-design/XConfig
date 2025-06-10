@@ -36,7 +36,13 @@ var playbookCmd = &cobra.Command{
 
 		executor.AggregateOutput = AggregateOutput
 		executor.CheckMode = CheckMode
-		executor.ExecutePlaybook(plays, inventoryPath)
+
+		// parse -e/--extra-vars into map and pass to executor
+		mergedVars := make(map[string]string)
+		for k, v := range ExtraVars {
+			mergedVars[k] = v
+		}
+		executor.ExecutePlaybook(plays, inventoryPath, mergedVars)
 	},
 }
 
@@ -44,5 +50,6 @@ func init() {
 	playbookCmd.Flags().StringVarP(&inventoryPath, "inventory", "i", "hosts.yaml", "Inventory file")
 	playbookCmd.Flags().BoolVarP(&AggregateOutput, "aggregate", "A", false, "Aggregate output from identical results")
 	playbookCmd.Flags().BoolVarP(&CheckMode, "check", "C", false, "Dry-run mode")
+	playbookCmd.Flags().StringToStringVarP(&ExtraVars, "extra-vars", "e", nil, "Extra variables in key=value format")
 	rootCmd.AddCommand(playbookCmd)
 }
