@@ -98,6 +98,18 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 						res = ssh.RunRemoteScript(h, task.Script)
 					} else if task.Template != nil {
 						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, mergedVars)
+					} else if task.Apt != nil {
+						if task.Apt.State == "" || task.Apt.State == "present" {
+							res = ssh.InstallAptPackage(h, task.Apt.Name)
+						} else {
+							res = ssh.CommandResult{Host: h.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: fmt.Sprintf("unsupported state '%s'", task.Apt.State)}
+						}
+					} else if task.Yum != nil {
+						if task.Yum.State == "" || task.Yum.State == "present" {
+							res = ssh.InstallYumPackage(h, task.Yum.Name)
+						} else {
+							res = ssh.CommandResult{Host: h.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: fmt.Sprintf("unsupported state '%s'", task.Yum.State)}
+						}
 					} else {
 						res = ssh.CommandResult{
 							Host:       h.Name,
