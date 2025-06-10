@@ -10,3 +10,5 @@ ca.key
 ca.srl
 kube.registry.local.cert
 kube.registry.local.key
+example/deepflow-agent-v6.6
+CraftWeave/example/deepflow-agent-for-linux/

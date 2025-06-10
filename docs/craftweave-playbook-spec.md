@@ -5,13 +5,16 @@
 
 - name: Run system checks         # ✅ 可选：描述 Play
   hosts: all                     # ✅ 必需：支持 inventory 中定义的组名或 all
-  gather_facts: false            # ✅ 可选：预留字段，暂不支持
+  gather_facts: false            # ✅ 可选：默认 true，设置为 false 可跳过自动收集系统信息
   vars:                          # ✅ 可选：play 级变量，可在 shell/template 中渲染
     message: "hello world"
 
   tasks:
     - name: Show hostname        # ✅ 可选：描述任务
       shell: hostname            # ✅ shell 模块，执行远程 shell 命令
+
+    - name: List root directory
+      command: ls /
 
     - name: Run CPU count script
       script: ./example/nproc.sh # ✅ script 模块：上传本地脚本并远程执行
@@ -29,15 +32,26 @@
         src: ./templates/motd.tmpl
         dest: /tmp/motd.txt
 
+    - name: Get kernel name
+      shell: uname -s
+      register: kernel
+
+    - name: Set greeting
+      set_fact:
+        greet: Hello
+
+    - name: Echo greeting when Linux
+      shell: echo "{{ greet }}"
+      when: kernel == "Linux"
+
+  roles:
+    - role: common
+
 ---
 
 # 🚀 TODO 支持（版本 roadmap）
-# - template: ./templates/nginx.conf.j2 → 远程路径（已支持）
 # - copy: src= dest= mode=
-# - when / tags / loop 等语法糖
-# - roles:
-#     - common
-#     - webserver
+# - tags / loop 等语法糖
 
 ---
 
@@ -74,7 +88,7 @@
 # 4. 如果指定了模块字段，值必须是字符串
 # 5. 错误信息应带行号与 task 名称提示
 
-# ✅ 合法模块 key（暂支持）: shell, script, template
+# ✅ 合法模块 key（暂支持）: shell, command, script, template
 # 🚫 不合法的 key：除上述外都报错（为后续模块保留）
 
 # CraftWeave Playbook 元素定义表格
@@ -83,8 +97,14 @@
 |----------|--------|----------|------------------------------------|
 | `name`   | string | ✅ 是     | Play 或 task 的描述                 |
 | `hosts`  | string | ✅ 是     | 当前 play 作用的 inventory 主机组  |
+| `gather_facts` | bool | 可选      | 是否自动收集系统信息，默认 true |
 | `tasks`  | list   | ✅ 是     | 每条任务可以是 shell、script、template 等 |
-| `shell`  | string | 可选      | 执行单条远程命令                   |
+| `shell`  | string | 可选      | 使用 bash 解释执行远程命令           |
+| `command` | string | 可选      | 直接执行远程命令（无 shell 展开）   |
 | `script` | string | 可选      | 执行本地脚本并上传远程运行         |
 | `template` | map  | 可选      | 渲染本地模板并上传至远程           |
 | `vars`   | map    | 可选（V1）| 支持在 shell 和 template 中引用     |
+| `roles`  | list   | 可选      | 引用 role 名称，自动加载其 tasks    |
+| `register` | string | 可选     | 保存命令输出供后续任务引用         |
+| `set_fact` | map    | 可选     | 自定义变量赋值                      |
+| `when`   | string | 可选      | 条件表达式，满足时执行任务           |

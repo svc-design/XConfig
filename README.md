@@ -7,7 +7,7 @@
 ## 🧩 特性概览
 
 ### ✅ 控制端（Go 实现）
-- 🛠️ `craftweave ansible`：类 Ansible 远程命令执行
+- 🛠️ `craftweave ansible`：类 Ansible 远程命令执行（支持 shell/command 模块）
 - 📜 `craftweave playbook`：YAML 多步骤任务编排（支持 template 模块）
 - 🔐 `craftweave vault`：加解密配置 (TODO)
 - 🧠 `craftweave cmdb`：导出拓扑图数据库 (TODO)
@@ -26,26 +26,53 @@
 
 ```
 [all]
-demo           ansible_host=192.168.124.77     ansible_ssh_user=shenlan
+demo           ansible_host=192.168.124.77     ansible_ssh_user=shenlan role=demo
 cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
 global-hub     ansible_host=2.15.135.215       ansible_ssh_user=centos
 
 [all:vars]
 ansible_port=22
 ansible_ssh_private_key_file=~/.ssh/id_rsa
+env='prod'
 ```
 
-3. 远程执行命令（类似 Ansible）
+3. 远程执行命令（Shell 模块）
 
 craftweave ansible all -i example/inventory -m shell -a 'id'
 
-4. 输出聚合展示（推荐用于大规模场景
+4. 远程执行命令（Command 模块）
+
+craftweave ansible all -i example/inventory -m command -a '/usr/bin/id'
+
+5. 输出聚合展示（推荐用于大规模场景
 
 craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
 
-5. 上传并执行脚本
+6. 上传并执行脚本
 
 craftweave ansible all -i example/inventory -m script -a example/uname.sh
+
+7. Dry-run 模式预览执行效果
+
+craftweave ansible all -i example/inventory -m shell -a 'id' -C
+
+8. 指定单个主机运行命令
+
+craftweave ansible cn-hub -i example/inventory -m shell -a 'uptime'
+
+9. 聚合输出执行脚本结果
+
+craftweave ansible all -i example/inventory -m script -a example/nproc.sh --aggregate
+
+10. 运行 Playbook 文件
+
+craftweave playbook -i example/inventory example/run_example -i example/inventory
+
+可选：执行更复杂的示例
+
+craftweave playbook -i example/inventory example/playbooks/system-check.yaml 
+craftweave playbook -i example/inventory example/playbooks/set-password.yml -e password=YOURPASS
+craftweave playbook -i example/inventory example/deploy_deepflow_agent
 
 # 📦 Agent 支持命令说明
 
@@ -63,6 +90,7 @@ craftweave ansible all -i example/inventory -m script -a example/uname.sh
 |-------------------|----------------------------------------------------|
 | `--aggregate`, `-A` | 聚合输出相同结果的主机（大规模场景推荐）         |
 | `--check`, `-C`     | Dry-run 模式，不实际执行命令（TODO）              |
+| `--extra-vars`, `-e` | 运行时变量，覆盖 Playbook 中的 `vars`             |
 
 # 控制端（Go 实现）
 
@@ -100,4 +128,4 @@ CraftWeave-agent/
 
 CraftWeave 旨在成为一个轻量级 DevOps 工具，融合任务调度、配置编排、架构建模、图数据库与 AI 辅助的智能插件系统，构建“人-机-架构”高效协作闭环。
 
-> 借助 🤖 ChatGPT 之力，愿你我皆成 AIGC 时代的创造者与编织者 🚀
+> 借助 🤖 ChatGPT 之力，愿你我皆成 AIGC 时代的创造者与织梦者 🚀
