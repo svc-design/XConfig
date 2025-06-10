@@ -52,6 +52,18 @@ craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
 
 craftweave ansible all -i example/inventory -m script -a example/uname.sh
 
+7. Dry-run 模式预览执行效果
+
+craftweave ansible all -i example/inventory -m shell -a 'id' -C
+
+8. 指定单个主机运行命令
+
+craftweave ansible cn-hub -i example/inventory -m shell -a 'uptime'
+
+9. 聚合输出执行脚本结果
+
+craftweave ansible all -i example/inventory -m script -a example/nproc.sh --aggregate
+
 # 📦 Agent 支持命令说明
 
 | 命令格式                      | 功能说明                                               |
