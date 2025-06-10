@@ -5,9 +5,9 @@ import (
 	"strings"
 	"sync"
 
+	"craftweave/core/executor"
 	"craftweave/core/parser"
 	"craftweave/internal/inventory"
-	"craftweave/internal/modules"
 	"craftweave/internal/ssh"
 	"github.com/spf13/cobra"
 )
@@ -25,8 +25,20 @@ var ansibleCmd = &cobra.Command{
 			return
 		}
 
-		var results []ssh.CommandResult
-		var mu sync.Mutex
+		task := parser.Task{}
+		switch module {
+		case "shell":
+			task.Shell = args
+		case "script":
+			task.Script = args
+		case "template":
+			parts := strings.SplitN(args, ":", 2)
+			if len(parts) == 2 {
+				task.Template = &parser.Template{Src: parts[0], Dest: parts[1]}
+			}
+		}
+
+		collector := &executor.MemoryCollector{}
 		var wg sync.WaitGroup
 		sem := make(chan struct{}, MaxWorkers)
 
@@ -41,32 +53,13 @@ var ansibleCmd = &cobra.Command{
 					return
 				}
 
-				t := parser.Task{}
-				switch module {
-				case "shell":
-					t.Shell = args
-				case "script":
-					t.Script = args
-				case "template":
-					parts := strings.SplitN(args, ":", 2)
-					if len(parts) == 2 {
-						t.Template = &parser.Template{Src: parts[0], Dest: parts[1]}
-					}
-				}
-
-				if hdl, ok := modules.GetHandler(t.Type()); ok {
-					res := hdl(modules.Context{Host: h}, t)
-					mu.Lock()
-					results = append(results, res)
-					mu.Unlock()
-				} else {
-					mu.Lock()
-					results = append(results, ssh.CommandResult{Host: h.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: fmt.Sprintf("Module '%s' is not supported.", module)})
-					mu.Unlock()
-				}
+				res := executor.ExecuteTask(task, h, nil)
+				collector.Collect(res)
 			}(h)
 		}
 		wg.Wait()
+
+		results := collector.Results
 
 		if AggregateOutput {
 			ssh.AggregatedPrint(results)
