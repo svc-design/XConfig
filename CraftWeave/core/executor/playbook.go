@@ -49,47 +49,59 @@ func (e *Executor) Execute(playbook []parser.Play, inventoryPath string) {
 			continue
 		}
 
-		var results []ssh.CommandResult
-		var mu sync.Mutex
-		var wg sync.WaitGroup
-		sem := make(chan struct{}, e.MaxWorkers)
+		hostVars := make(map[string]map[string]string, len(hosts))
+		for _, h := range hosts {
+			hostVars[h.Name] = copyVars(play.Vars)
+		}
 
-		for _, host := range hosts {
-			hostVars := copyVars(play.Vars)
-			wg.Add(1)
-			go func(h inventory.Host, vars map[string]string) {
-				defer wg.Done()
-				sem <- struct{}{}
-				defer func() { <-sem }()
+		for _, task := range play.Tasks {
+			fmt.Printf("\nTASK [%s] ********************************************************\n", task.Name)
 
-				for _, task := range play.Tasks {
+			var results []ssh.CommandResult
+			var mu sync.Mutex
+			var wg sync.WaitGroup
+			sem := make(chan struct{}, e.MaxWorkers)
+
+			for _, host := range hosts {
+				vars := hostVars[host.Name]
+				wg.Add(1)
+				go func(h inventory.Host, vars map[string]string) {
+					defer wg.Done()
+					sem <- struct{}{}
+					defer func() { <-sem }()
+
 					if !EvaluateWhen(task.When, vars) {
-						continue
+						return
 					}
 
 					if e.CheckMode {
-						fmt.Printf("%s | SKIPPED | dry-run: %s\n", h.Name, task.Name)
-						continue
+						res := ssh.CommandResult{Host: h.Name, ReturnMsg: "SKIPPED", ReturnCode: 0, Output: fmt.Sprintf("dry-run: %s", task.Name)}
+						mu.Lock()
+						results = append(results, res)
+						mu.Unlock()
+						if e.Logger != nil {
+							e.Logger.Collect(res)
+						}
+						return
 					}
 
 					res := ExecuteTask(task, h, vars)
-
 					mu.Lock()
 					results = append(results, res)
 					mu.Unlock()
 					if e.Logger != nil {
 						e.Logger.Collect(res)
 					}
-				}
-			}(host, hostVars)
-		}
-		wg.Wait()
+				}(host, vars)
+			}
+			wg.Wait()
 
-		if e.AggregateOutput {
-			ssh.AggregatedPrint(results)
-		} else {
-			for _, r := range results {
-				fmt.Printf("%s | %s | rc=%d >>\n%s\n", r.Host, r.ReturnMsg, r.ReturnCode, r.Output)
+			if e.AggregateOutput {
+				ssh.AggregatedPrint(results)
+			} else {
+				for _, r := range results {
+					fmt.Printf("%s | %s | rc=%d >>\n%s\n", r.Host, r.ReturnMsg, r.ReturnCode, r.Output)
+				}
 			}
 		}
 	}
