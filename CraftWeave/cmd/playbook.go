@@ -4,6 +4,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -36,7 +37,7 @@ var playbookCmd = &cobra.Command{
 
 		executor.AggregateOutput = AggregateOutput
 		executor.CheckMode = CheckMode
-		executor.ExecutePlaybook(plays, inventoryPath)
+		executor.ExecutePlaybook(plays, inventoryPath, filepath.Dir(file))
 	},
 }
 

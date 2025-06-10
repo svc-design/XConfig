@@ -4,8 +4,12 @@ package executor
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"text/template"
+
+	"gopkg.in/yaml.v3"
 
 	"craftweave/core/parser"
 	"craftweave/internal/inventory"
@@ -17,7 +21,7 @@ var AggregateOutput bool
 var CheckMode bool
 
 // ExecutePlaybook 解析并执行整个 playbook
-func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
+func ExecutePlaybook(playbook []parser.Play, inventoryPath, baseDir string) {
 	for _, play := range playbook {
 		fmt.Printf("\n🎯 Play: %s (hosts: %s)\n", play.Name, play.Hosts)
 
@@ -27,12 +31,36 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
 			continue
 		}
 
+		allTasks := append([]parser.Task{}, play.Tasks...)
+		for _, role := range play.Roles {
+			rolePath := filepath.Join(baseDir, "roles", role.Role, "tasks", "main.yaml")
+			data, err := os.ReadFile(rolePath)
+			if err != nil {
+				fmt.Printf("❌ Failed to load role %s: %v\n", role.Role, err)
+				continue
+			}
+			var roleTasks []parser.Task
+			if err := yaml.Unmarshal(data, &roleTasks); err != nil {
+				fmt.Printf("❌ Failed to parse role %s: %v\n", role.Role, err)
+				continue
+			}
+			for i := range roleTasks {
+				if roleTasks[i].Script != "" && !filepath.IsAbs(roleTasks[i].Script) {
+					roleTasks[i].Script = filepath.Join(baseDir, "roles", role.Role, roleTasks[i].Script)
+				}
+				if roleTasks[i].Template != nil && roleTasks[i].Template.Src != "" && !filepath.IsAbs(roleTasks[i].Template.Src) {
+					roleTasks[i].Template.Src = filepath.Join(baseDir, "roles", role.Role, roleTasks[i].Template.Src)
+				}
+			}
+			allTasks = append(allTasks, roleTasks...)
+		}
+
 		var results []ssh.CommandResult
 		var mu sync.Mutex
 		var wg sync.WaitGroup
 
 		for _, host := range hosts {
-			for _, task := range play.Tasks {
+			for _, task := range allTasks {
 				task := task // 关闭闭包引用
 				wg.Add(1)
 
