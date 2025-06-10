@@ -52,6 +52,15 @@ craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
 
 craftweave ansible all -i example/inventory -m script -a example/uname.sh
 
+7. 运行 Playbook 文件
+
+craftweave playbook example/run_example -i example/inventory
+
+可选：执行更复杂的示例
+
+craftweave playbook example/playbooks/system-check.yaml -i example/inventory
+craftweave playbook example/playbooks/set-password.yml -i example/inventory -e password=YOURPASS
+
 # 📦 Agent 支持命令说明
 
 | 命令格式                      | 功能说明                                               |
