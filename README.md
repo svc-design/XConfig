@@ -52,8 +52,6 @@ craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
 
 craftweave ansible all -i example/inventory -m script -a example/uname.sh
 
-
-=======
 7. Dry-run 模式预览执行效果
 
 craftweave ansible all -i example/inventory -m shell -a 'id' -C
