@@ -34,14 +34,15 @@ var playbookCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		executor.AggregateOutput = AggregateOutput
-		executor.CheckMode = CheckMode
-		executor.ExecutePlaybook(plays, inventoryPath)
+		exec := executor.New(AggregateOutput, CheckMode)
+		exec.MaxWorkers = MaxWorkers
+		exec.Execute(plays, inventoryPath)
 	},
 }
 
 func init() {
 	playbookCmd.Flags().StringVarP(&inventoryPath, "inventory", "i", "hosts.yaml", "Inventory file")
+	playbookCmd.Flags().IntVarP(&MaxWorkers, "forks", "f", 5, "Max parallel tasks")
 	playbookCmd.Flags().BoolVarP(&AggregateOutput, "aggregate", "A", false, "Aggregate output from identical results")
 	playbookCmd.Flags().BoolVarP(&CheckMode, "check", "C", false, "Dry-run mode")
 	rootCmd.AddCommand(playbookCmd)
