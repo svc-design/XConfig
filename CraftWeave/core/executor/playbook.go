@@ -183,7 +183,12 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 							}
 							hv[k] = val
 						}
-						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, hv)
+						res = ssh.CommandResult{
+							Host:       h.Name,
+							ReturnMsg:  "OK",
+							ReturnCode: 0,
+							Output:     "facts set",
+						}
 					} else if task.Copy != nil {
 						src := task.Copy.Src
 						dest := task.Copy.Dest
