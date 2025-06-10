@@ -1,5 +1,5 @@
 [all]
-demo           ansible_host=172.30.0.11        ansible_ssh_user=shenlan
+demo           ansible_host=172.30.0.11        ansible_ssh_user=shenlan role=demo
 cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
 global-hub     ansible_host=167.179.72.223     ansible_ssh_user=root
 icp-huawei     ansible_host=139.9.139.22       ansible_ssh_user=root
@@ -13,6 +13,8 @@ domain='svc.plus'
 ansible_port=22
 ansible_ssh_user=ubuntu
 ansible_ssh_pass=''
+# custom var for all hosts
+env='prod'
 #ansible_ssh_private_key_file=~/.ssh/id_rsa
 ansible_host_key_checking=False
 
