@@ -10,4 +10,9 @@ ca.key
 ca.srl
 kube.registry.local.cert
 kube.registry.local.key
-CraftWeave/ip.txt
+CraftWeave/ip.list
+CraftWeave/example/scripts/ip.list
+CraftWeave/example/scripts/deepflow-agent-*
+CraftWeave/example/deepflow-agent-*
+CraftWeave/example/playbooks/deepflow-agent-*
+CraftWeave/example/playbooks/deepflow-agent-for-linux/
