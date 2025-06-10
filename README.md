@@ -52,14 +52,29 @@ craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
 
 craftweave ansible all -i example/inventory -m script -a example/uname.sh
 
-7. 运行 Playbook 文件
 
-craftweave playbook example/run_example -i example/inventory
+=======
+7. Dry-run 模式预览执行效果
+
+craftweave ansible all -i example/inventory -m shell -a 'id' -C
+
+8. 指定单个主机运行命令
+
+craftweave ansible cn-hub -i example/inventory -m shell -a 'uptime'
+
+9. 聚合输出执行脚本结果
+
+craftweave ansible all -i example/inventory -m script -a example/nproc.sh --aggregate
+
+10. 运行 Playbook 文件
+
+craftweave playbook -i example/inventory example/run_example -i example/inventory
 
 可选：执行更复杂的示例
 
-craftweave playbook example/playbooks/system-check.yaml -i example/inventory
-craftweave playbook example/playbooks/set-password.yml -i example/inventory -e password=YOURPASS
+craftweave playbook -i example/inventory example/playbooks/system-check.yaml 
+craftweave playbook -i example/inventory example/playbooks/set-password.yml -e password=YOURPASS
+craftweave playbook -i example/inventory example/deploy_deepflow_agent
 
 # 📦 Agent 支持命令说明
 
