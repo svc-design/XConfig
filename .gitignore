@@ -10,3 +10,4 @@ ca.key
 ca.srl
 kube.registry.local.cert
 kube.registry.local.key
+CraftWeave/ip.txt
