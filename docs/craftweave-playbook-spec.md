@@ -29,15 +29,14 @@
         src: ./templates/motd.tmpl
         dest: /tmp/motd.txt
 
+  roles:
+    - role: common
+
 ---
 
 # 🚀 TODO 支持（版本 roadmap）
-# - template: ./templates/nginx.conf.j2 → 远程路径（已支持）
 # - copy: src= dest= mode=
 # - when / tags / loop 等语法糖
-# - roles:
-#     - common
-#     - webserver
 
 ---
 
@@ -88,3 +87,4 @@
 | `script` | string | 可选      | 执行本地脚本并上传远程运行         |
 | `template` | map  | 可选      | 渲染本地模板并上传至远程           |
 | `vars`   | map    | 可选（V1）| 支持在 shell 和 template 中引用     |
+| `roles`  | list  | 可选      | 引用 role 名称，自动加载其 tasks    |
