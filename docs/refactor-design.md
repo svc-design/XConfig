@@ -9,6 +9,7 @@ This document outlines the architecture introduced in the recent refactor. The g
   - `CheckMode` – dry-run without executing tasks.
   - `MaxWorkers` – limit parallel goroutines via a semaphore.
 - Optional `LogCollector` interface for custom result handling.
+- `MemoryCollector` provides an in-memory implementation used by CLI commands.
 
 ## Module Registry
 - `internal/modules` hosts built-in modules.
@@ -28,4 +29,5 @@ This document outlines the architecture introduced in the recent refactor. The g
 ## CLI Changes
 - `ansible` and `playbook` commands share the same registry and executor logic.
 - `--forks` flag controls concurrency for both commands.
+- `ansible` runs tasks via `ExecuteTask` with pooled workers and optional logging.
 
