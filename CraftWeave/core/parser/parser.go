@@ -19,9 +19,10 @@ type Role struct {
 }
 
 type Play struct {
-	Name  string            `yaml:"name"`
-	Hosts string            `yaml:"hosts"`
-	Vars  map[string]string `yaml:"vars,omitempty"`
-	Tasks []Task            `yaml:"tasks"`
-	Roles []Role            `yaml:"roles,omitempty"`
+	Name        string            `yaml:"name"`
+	Hosts       string            `yaml:"hosts"`
+	GatherFacts *bool             `yaml:"gather_facts,omitempty"`
+	Vars        map[string]string `yaml:"vars,omitempty"`
+	Tasks       []Task            `yaml:"tasks"`
+	Roles       []Role            `yaml:"roles,omitempty"`
 }

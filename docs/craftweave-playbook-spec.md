@@ -5,7 +5,7 @@
 
 - name: Run system checks         # ✅ 可选：描述 Play
   hosts: all                     # ✅ 必需：支持 inventory 中定义的组名或 all
-  gather_facts: false            # ✅ 可选：预留字段，暂不支持
+  gather_facts: false            # ✅ 可选：默认 true，设置为 false 可跳过自动收集系统信息
   vars:                          # ✅ 可选：play 级变量，可在 shell/template 中渲染
     message: "hello world"
 
@@ -82,6 +82,7 @@
 |----------|--------|----------|------------------------------------|
 | `name`   | string | ✅ 是     | Play 或 task 的描述                 |
 | `hosts`  | string | ✅ 是     | 当前 play 作用的 inventory 主机组  |
+| `gather_facts` | bool | 可选      | 是否自动收集系统信息，默认 true |
 | `tasks`  | list   | ✅ 是     | 每条任务可以是 shell、script、template 等 |
 | `shell`  | string | 可选      | 执行单条远程命令                   |
 | `script` | string | 可选      | 执行本地脚本并上传远程运行         |

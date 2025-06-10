@@ -60,12 +60,23 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 		var wg sync.WaitGroup
 
 		// merge play vars with extra vars (extra vars override)
-		mergedVars := make(map[string]string)
+		playVars := make(map[string]string)
 		for k, v := range play.Vars {
-			mergedVars[k] = v
+			playVars[k] = v
 		}
 		for k, v := range extraVars {
-			mergedVars[k] = v
+			playVars[k] = v
+		}
+
+		hostFacts := make(map[string]map[string]string)
+		gather := true
+		if play.GatherFacts != nil {
+			gather = *play.GatherFacts
+		}
+		if gather {
+			for _, h := range hosts {
+				hostFacts[h.Name] = ssh.GatherFacts(h)
+			}
 		}
 
 		for _, host := range hosts {
@@ -82,6 +93,14 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 					}
 
 					var res ssh.CommandResult
+					mergedVars := make(map[string]string)
+					for k, v := range hostFacts[h.Name] {
+						mergedVars[k] = v
+					}
+					for k, v := range playVars {
+						mergedVars[k] = v
+					}
+
 					if task.Shell != "" {
 						rendered := task.Shell
 						if len(mergedVars) > 0 {
