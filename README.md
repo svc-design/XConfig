@@ -101,4 +101,4 @@ CraftWeave-agent/
 
 CraftWeave 旨在成为一个轻量级 DevOps 工具，融合任务调度、配置编排、架构建模、图数据库与 AI 辅助的智能插件系统，构建“人-机-架构”高效协作闭环。
 
-> 借助 🤖 ChatGPT 之力，愿你我皆成 AIGC 时代的创造者与编织者 🚀
+> 借助 🤖 ChatGPT 之力，愿你我皆成 AIGC 时代的创造者与织梦者 🚀
