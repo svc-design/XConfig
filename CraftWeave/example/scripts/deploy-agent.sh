@@ -8,7 +8,7 @@ set -e
 
 IP_LIST="./ip.list"  # 定义主机清单文件路径，每行格式为：IP USER PASSWORD
 SERVICE_NAME="deepflow-agent"  # 定义要操作的服务名称（deepflow-agent）
-PKG_DIR="deepflow-agent-v6.6/deepflow-agent-for-linux"  # 存放各平台 RPM 包的目录
+PKG_DIR="deepflow-agent-for-linux"  # 存放各平台 RPM 包的目录
 
 # === 默认值，可通过参数覆盖 ===
 CONTROLLER_IP=""
@@ -49,7 +49,6 @@ fi
 choose_agent_package() {
   local arch="$1"
   local init=""
-  local arch_dir=""
   local pkg=""
 
   init=$(sshpass -p "$pass" ssh -o StrictHostKeyChecking=no "$user@$ip" '
@@ -62,19 +61,6 @@ choose_agent_package() {
     return
   fi
 
-  case "$arch" in
-    x86_64)
-      arch_dir="x86_64"
-      ;;
-    aarch64 | arm64)
-      arch_dir="aarch64"
-      ;;
-    *)
-      echo "UNSUPPORTED"
-      return
-      ;;
-  esac
-
   pkg_type=$(sshpass -p "$pass" ssh -o StrictHostKeyChecking=no "$user@$ip" '
     if command -v rpm >/dev/null; then echo rpm;
     elif command -v dpkg >/dev/null; then echo deb;
@@ -85,7 +71,10 @@ choose_agent_package() {
     return
   fi
 
-  pkg=$(find "$PKG_DIR/$arch_dir" -type f -name "deepflow-agent-*.$init*.$arch.$pkg_type" | sort -V | tail -1)
+  # 查找匹配初始化系统和包格式的文件，优先考虑带架构字段的，降级用通用版
+  pkg=$(find "$PKG_DIR" -type f \( \
+    -name "deepflow-agent-*.$init-*.$pkg_type" -o \
+    -name "deepflow-agent-*.$init.$pkg_type" \) | sort -V | tail -1)
 
   if [[ -n "$pkg" ]]; then
     echo "$pkg"
