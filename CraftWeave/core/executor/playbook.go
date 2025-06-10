@@ -27,7 +27,20 @@ func (e *Executor) SetLogger(l LogCollector) { e.Logger = l }
 
 // Execute processes and runs the given playbook.
 func (e *Executor) Execute(playbook []parser.Play, inventoryPath string) {
-	for _, play := range playbook {
+	for i := range playbook {
+		play := &playbook[i]
+		if play.Vars == nil {
+			play.Vars = make(map[string]string)
+		}
+
+		copyVars := func(src map[string]string) map[string]string {
+			dst := make(map[string]string, len(src))
+			for k, v := range src {
+				dst[k] = v
+			}
+			return dst
+		}
+
 		fmt.Printf("\n🎯 Play: %s (hosts: %s)\n", play.Name, play.Hosts)
 
 		hosts, err := inventory.Parse(inventoryPath, play.Hosts)
@@ -42,24 +55,24 @@ func (e *Executor) Execute(playbook []parser.Play, inventoryPath string) {
 		sem := make(chan struct{}, e.MaxWorkers)
 
 		for _, host := range hosts {
-			for _, task := range play.Tasks {
-				task := task
-				wg.Add(1)
-				go func(h inventory.Host) {
-					defer wg.Done()
-					sem <- struct{}{}
-					defer func() { <-sem }()
+			hostVars := copyVars(play.Vars)
+			wg.Add(1)
+			go func(h inventory.Host, vars map[string]string) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
 
-					if !EvaluateWhen(task.When, play.Vars) {
-						return
+				for _, task := range play.Tasks {
+					if !EvaluateWhen(task.When, vars) {
+						continue
 					}
 
 					if e.CheckMode {
 						fmt.Printf("%s | SKIPPED | dry-run: %s\n", h.Name, task.Name)
-						return
+						continue
 					}
 
-					res := ExecuteTask(task, h, play.Vars)
+					res := ExecuteTask(task, h, vars)
 
 					mu.Lock()
 					results = append(results, res)
@@ -67,8 +80,8 @@ func (e *Executor) Execute(playbook []parser.Play, inventoryPath string) {
 					if e.Logger != nil {
 						e.Logger.Collect(res)
 					}
-				}(host)
-			}
+				}
+			}(host, hostVars)
 		}
 		wg.Wait()
 
