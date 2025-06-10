@@ -74,6 +74,26 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 		var mu sync.Mutex
 		var wg sync.WaitGroup
 
+		// merge play vars with extra vars (extra vars override)
+		playVars := make(map[string]string)
+		for k, v := range play.Vars {
+			playVars[k] = v
+		}
+		for k, v := range extraVars {
+			playVars[k] = v
+		}
+
+		hostFacts := make(map[string]map[string]string)
+		gather := true
+		if play.GatherFacts != nil {
+			gather = *play.GatherFacts
+		}
+		if gather {
+			for _, h := range hosts {
+				hostFacts[h.Name] = ssh.GatherFacts(h)
+			}
+		}
+
 		for _, host := range hosts {
 			for _, task := range allTasks {
 				task := task // 关闭闭包引用
@@ -100,6 +120,15 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 					}
 
 					var res ssh.CommandResult
+
+					mergedVars := make(map[string]string)
+					for k, v := range hostFacts[h.Name] {
+						mergedVars[k] = v
+					}
+					for k, v := range playVars {
+						mergedVars[k] = v
+					}
+
 					if task.Command != "" {
 						rendered := task.Command
 						if len(mergedVars) > 0 {
