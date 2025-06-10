@@ -17,7 +17,7 @@ var AggregateOutput bool
 var CheckMode bool
 
 // ExecutePlaybook 解析并执行整个 playbook
-func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
+func ExecutePlaybook(playbook []parser.Play, inventoryPath string, extraVars map[string]string) {
 	for _, play := range playbook {
 		fmt.Printf("\n🎯 Play: %s (hosts: %s)\n", play.Name, play.Hosts)
 
@@ -30,6 +30,15 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
 		var results []ssh.CommandResult
 		var mu sync.Mutex
 		var wg sync.WaitGroup
+
+		// merge play vars with extra vars (extra vars override)
+		mergedVars := make(map[string]string)
+		for k, v := range play.Vars {
+			mergedVars[k] = v
+		}
+		for k, v := range extraVars {
+			mergedVars[k] = v
+		}
 
 		for _, host := range hosts {
 			for _, task := range play.Tasks {
@@ -47,11 +56,11 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
 					var res ssh.CommandResult
 					if task.Shell != "" {
 						rendered := task.Shell
-						if len(play.Vars) > 0 {
+						if len(mergedVars) > 0 {
 							renderedTmpl, err := template.New("shell").Parse(task.Shell)
 							if err == nil {
 								var buf bytes.Buffer
-								if err := renderedTmpl.Execute(&buf, play.Vars); err == nil {
+								if err := renderedTmpl.Execute(&buf, mergedVars); err == nil {
 									rendered = buf.String()
 								}
 							}
@@ -60,7 +69,7 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
 					} else if task.Script != "" {
 						res = ssh.RunRemoteScript(h, task.Script)
 					} else if task.Template != nil {
-						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, play.Vars)
+						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, mergedVars)
 					} else {
 						res = ssh.CommandResult{
 							Host:       h.Name,
