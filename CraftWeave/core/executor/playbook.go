@@ -74,15 +74,6 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 		var mu sync.Mutex
 		var wg sync.WaitGroup
 
-		// merge play vars with extra vars (extra vars override)
-		mergedVars := make(map[string]string)
-		for k, v := range play.Vars {
-			mergedVars[k] = v
-		}
-		for k, v := range extraVars {
-			mergedVars[k] = v
-		}
-
 		for _, host := range hosts {
 			for _, task := range allTasks {
 				task := task // 关闭闭包引用
@@ -90,6 +81,18 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string, baseDir strin
 
 				go func(h inventory.Host) {
 					defer wg.Done()
+
+					// merge host vars -> play vars -> extra vars (later overrides)
+					mergedVars := make(map[string]string)
+					for k, v := range h.Vars {
+						mergedVars[k] = v
+					}
+					for k, v := range play.Vars {
+						mergedVars[k] = v
+					}
+					for k, v := range extraVars {
+						mergedVars[k] = v
+					}
 
 					if CheckMode {
 						fmt.Printf("%s | SKIPPED | dry-run: %s\n", h.Name, task.Name)
