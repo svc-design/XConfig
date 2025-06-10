@@ -39,10 +39,26 @@
   delegate_to: localhost
   become: false
 
-- name: Copy agent package to /tmp on target
+- name: Copy agent package to /tmp on target (copy)
+  when: agent_sync_method == 'copy'
   copy:
     src: "{{ agent_pkg_file }}"
     dest: "/tmp/deepflow-agent.{{ pkg_type }}"
+    mode: '0644'
+
+- name: Copy agent package to /tmp on target (synchronize)
+  when: agent_sync_method == 'synchronize'
+  synchronize:
+    src: "{{ agent_pkg_file }}"
+    dest: "/tmp/deepflow-agent.{{ pkg_type }}"
+    mode: push
+  delegate_to: localhost
+  become: false
+
+- name: Ensure package permissions when using synchronize
+  when: agent_sync_method == 'synchronize'
+  file:
+    path: "/tmp/deepflow-agent.{{ pkg_type }}"
     mode: '0644'
 
 - name: Install .rpm from /tmp

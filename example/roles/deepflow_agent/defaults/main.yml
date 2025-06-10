@@ -1,0 +1,2 @@
+# Default method to transfer the agent package
+agent_sync_method: copy  # use 'synchronize' to transfer via rsync

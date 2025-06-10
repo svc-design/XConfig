@@ -74,6 +74,8 @@ craftweave playbook -i example/inventory example/playbooks/system-check.yaml
 craftweave playbook -i example/inventory example/playbooks/set-password.yml -e password=YOURPASS
 craftweave playbook -i example/inventory example/deploy_deepflow_agent
 
+可以通过 `-e agent_sync_method=synchronize` 使用 `rsync` 加速分发安装包。
+
 # 📦 Agent 支持命令说明
 
 | 命令格式                      | 功能说明                                               |
