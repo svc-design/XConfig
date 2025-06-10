@@ -43,7 +43,7 @@ var playbookCmd = &cobra.Command{
 		for k, v := range ExtraVars {
 			mergedVars[k] = v
 		}
-		executor.ExecutePlaybook(plays, inventoryPath, mergedVars)
+		executor.ExecutePlaybook(plays, inventoryPath, filepath.Dir(file), mergedVars)
 	},
 }
 
