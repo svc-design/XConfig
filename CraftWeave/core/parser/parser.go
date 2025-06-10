@@ -13,6 +13,20 @@ type Task struct {
 	Template *Template `yaml:"template,omitempty"`
 }
 
+// Type returns the module type of the task
+func (t Task) Type() string {
+	switch {
+	case t.Shell != "":
+		return "shell"
+	case t.Script != "":
+		return "script"
+	case t.Template != nil:
+		return "template"
+	default:
+		return ""
+	}
+}
+
 type Play struct {
 	Name  string            `yaml:"name"`
 	Hosts string            `yaml:"hosts"`

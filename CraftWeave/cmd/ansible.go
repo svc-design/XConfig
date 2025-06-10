@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/spf13/cobra"
+
+	"craftweave/core/executor"
+	"craftweave/core/output"
+	"craftweave/core/parser"
 	"craftweave/internal/inventory"
-	"craftweave/internal/ssh"
 )
 
 var module, args string
@@ -22,48 +24,38 @@ var ansibleCmd = &cobra.Command{
 			return
 		}
 
-		var results []ssh.CommandResult
-		var mu sync.Mutex
-		var wg sync.WaitGroup
+		var task parser.Task
+		switch module {
+		case "shell":
+			task.Shell = args
+		case "script":
+			task.Script = args
+		default:
+			fmt.Printf("Module '%s' is not supported.\n", module)
+			return
+		}
 
+		var collector output.Collector
+		if AggregateOutput {
+			collector = &output.AggregateCollector{}
+		} else {
+			collector = output.StdoutCollector{}
+		}
+
+		pool := executor.NewPool(MaxConcurrency)
 		for _, h := range hosts {
-			wg.Add(1)
-			go func(h inventory.Host) {
-				defer wg.Done()
+			host := h
+			pool.Go(func() {
 				if CheckMode {
-					fmt.Printf("%s | SKIPPED\n", h.Name)
+					fmt.Printf("%s | SKIPPED\n", host.Name)
 					return
 				}
-
-				var res ssh.CommandResult
-				switch module {
-				case "shell":
-					res = ssh.RunShellCommand(h, args)
-				case "script":
-					res = ssh.RunRemoteScript(h, args)
-				default:
-					res = ssh.CommandResult{
-						Host:       h.Name,
-						ReturnMsg:  "FAILED",
-						ReturnCode: 1,
-						Output:     fmt.Sprintf("Module '%s' is not supported.", module),
-					}
-				}
-
-				mu.Lock()
-				results = append(results, res)
-				mu.Unlock()
-			}(h)
+				res := executor.ExecuteTask(host, task, nil)
+				collector.Collect(res)
+			})
 		}
-		wg.Wait()
-
-		if AggregateOutput {
-			ssh.AggregatedPrint(results)
-		} else {
-			for _, r := range results {
-				fmt.Printf("%s | %s | rc=%d >>\n%s\n", r.Host, r.ReturnMsg, r.ReturnCode, r.Output)
-			}
-		}
+		pool.Wait()
+		collector.Flush()
 	},
 }
 

@@ -36,7 +36,7 @@ var playbookCmd = &cobra.Command{
 
 		executor.AggregateOutput = AggregateOutput
 		executor.CheckMode = CheckMode
-		executor.ExecutePlaybook(plays, inventoryPath)
+		executor.ExecutePlaybook(plays, inventoryPath, MaxConcurrency)
 	},
 }
 

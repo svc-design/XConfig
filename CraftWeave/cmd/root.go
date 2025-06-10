@@ -38,6 +38,13 @@ func init() {
 		false,
 		"Aggregate output from multiple hosts",
 	)
+
+	rootCmd.PersistentFlags().IntVarP(
+		&MaxConcurrency,
+		"forks", "f",
+		5,
+		"Maximum number of parallel tasks",
+	)
 }
 
 // 启动时打印 ASCII Banner

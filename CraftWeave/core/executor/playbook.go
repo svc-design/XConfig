@@ -1,23 +1,19 @@
-// core/executor/playbook.go
 package executor
 
 import (
-	"bytes"
 	"fmt"
-	"sync"
-	"text/template"
 
+	"craftweave/core/output"
 	"craftweave/core/parser"
 	"craftweave/internal/inventory"
-	"craftweave/internal/ssh"
 )
 
-// 全局控制输出样式和 dry-run 模式
+// Global options
 var AggregateOutput bool
 var CheckMode bool
 
-// ExecutePlaybook 解析并执行整个 playbook
-func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
+// ExecutePlaybook parses and runs a playbook using registered task modules
+func ExecutePlaybook(playbook []parser.Play, inventoryPath string, concurrency int) {
 	for _, play := range playbook {
 		fmt.Printf("\n🎯 Play: %s (hosts: %s)\n", play.Name, play.Hosts)
 
@@ -27,63 +23,29 @@ func ExecutePlaybook(playbook []parser.Play, inventoryPath string) {
 			continue
 		}
 
-		var results []ssh.CommandResult
-		var mu sync.Mutex
-		var wg sync.WaitGroup
+		var collector output.Collector
+		if AggregateOutput {
+			collector = &output.AggregateCollector{}
+		} else {
+			collector = output.StdoutCollector{}
+		}
 
+		pool := NewPool(concurrency)
 		for _, host := range hosts {
 			for _, task := range play.Tasks {
-				task := task // 关闭闭包引用
-				wg.Add(1)
-
-				go func(h inventory.Host) {
-					defer wg.Done()
-
+				h := host
+				t := task
+				pool.Go(func() {
 					if CheckMode {
-						fmt.Printf("%s | SKIPPED | dry-run: %s\n", h.Name, task.Name)
+						fmt.Printf("%s | SKIPPED | dry-run: %s\n", h.Name, t.Name)
 						return
 					}
-
-					var res ssh.CommandResult
-					if task.Shell != "" {
-						rendered := task.Shell
-						if len(play.Vars) > 0 {
-							renderedTmpl, err := template.New("shell").Parse(task.Shell)
-							if err == nil {
-								var buf bytes.Buffer
-								if err := renderedTmpl.Execute(&buf, play.Vars); err == nil {
-									rendered = buf.String()
-								}
-							}
-						}
-						res = ssh.RunShellCommand(h, rendered)
-					} else if task.Script != "" {
-						res = ssh.RunRemoteScript(h, task.Script)
-					} else if task.Template != nil {
-						res = ssh.RenderTemplate(h, task.Template.Src, task.Template.Dest, play.Vars)
-					} else {
-						res = ssh.CommandResult{
-							Host:       h.Name,
-							ReturnMsg:  "FAILED",
-							ReturnCode: 1,
-							Output:     fmt.Sprintf("Unsupported task type in '%s'", task.Name),
-						}
-					}
-
-					mu.Lock()
-					results = append(results, res)
-					mu.Unlock()
-				}(host)
+					res := ExecuteTask(h, t, play.Vars)
+					collector.Collect(res)
+				})
 			}
 		}
-		wg.Wait()
-
-		if AggregateOutput {
-			ssh.AggregatedPrint(results)
-		} else {
-			for _, r := range results {
-				fmt.Printf("%s | %s | rc=%d >>\n%s\n", r.Host, r.ReturnMsg, r.ReturnCode, r.Output)
-			}
-		}
+		pool.Wait()
+		collector.Flush()
 	}
 }
