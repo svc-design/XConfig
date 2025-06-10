@@ -15,3 +15,14 @@ ansible_ssh_user=ubuntu
 ansible_ssh_pass=''
 #ansible_ssh_private_key_file=~/.ssh/id_rsa
 ansible_host_key_checking=False
+
+# SSH 密钥或密码（二选一）
+# ansible_ssh_private_key_file=~/.ssh/id_rsa
+# ansible_ssh_pass=your_password
+
+# DeepFlow agent 配置变量
+controller_ips=["10.10.10.10", "10.10.10.11"]
+vtap_group_id="g-P22vLIMdB6"
+
+# DeepFlow agent 安装包位置
+agent_base_dir="deepflow-agent-for-linux"

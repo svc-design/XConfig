@@ -1,0 +1,5 @@
+- name: Deploy or Upgrade DeepFlow Agent
+  hosts: all
+  become: true
+  roles:
+    - role: deepflow_agent
