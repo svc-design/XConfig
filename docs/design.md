@@ -1,177 +1,43 @@
-# CraftWeave Design Overview
+# CraftWeave 设计概览
 
-This document summarizes the current codebase layout and the main functions available in each module. The goal is to provide an easy reference when extending CraftWeave with new features (e.g. copy, command, package modules).
+本文件结合当前代码库，对 CraftWeave 的架构模式、已实现模块以及后续可扩展点进行简要说明，便于后续开发。
 
-## Directory Structure
+## 1. 现在的架构模式
 
-```
-建议的目录结构
-bash
-复制
-编辑
-core/
-├── parser/                 # 解析 playbook、task、role 结构
-│   └── parser.go
-├── executor/               # Playbook 执行逻辑（核心 orchestrator）
-│   ├── playbook.go         # ExecutePlaybook 主入口
-│   ├── condition.go        # when 条件处理
-│   └── variable.go         # register、set_fact、变量作用域解析
+CraftWeave 控制端采用 Go 实现，整体架构遵循 "CLI -> 执行器 -> 模块 -> SSH" 的流水线：
 
-internal/
-├── modules/                # 内建模块实现，如 shell, copy, yum 等
-│   ├── registry.go         # 模块注册机制（注册名 → HandlerFunc）
-│   ├── shell.go
-│   ├── command.go
-│   ├── copy.go
-│   ├── yum.go
-│   ├── apt.go
-│   ├── systemd.go
-│   ├── service.go
-│   ├── fail.go
-│   ├── debug.go
-│   └── types.go            # 模块接口定义（如 TaskHandler、ModuleResult）
+1. **CLI 层 (`cmd/`)** 使用 [Cobra](https://github.com/spf13/cobra) 提供 `ansible` 与 `playbook` 等子命令，解析用户输入。
+2. **解析与执行 (`core/`)**
+   - `parser`：解析 YAML Playbook，转化为 `Play`、`Task` 等结构体。
+   - `executor`：遍历任务，调用模块或内置逻辑执行，并支持并发、`when` 条件与日志收集。
+3. **内部库 (`internal/`)**
+   - `inventory`：解析 INI 格式 inventory，提供主机信息。
+   - `ssh`：封装远程命令执行、脚本上传和模板渲染。
+   - `modules`：注册并实现可扩展的任务模块。
+4. **Agent (`CraftWeaveAgent/`)** 采用 Rust 编写，可定时拉取并在本地执行 Playbook，实现轻量化的边缘执行能力。
 
-├── ssh/                    # 底层 SSH 操作封装
-│   ├── runner.go           # SSH 执行
-│   ├── result.go           # 执行结果封装
-│   ├── script.go           # 远程脚本
-│   ├── template.go         # 模板渲染
-│   ├── copy.go             # 文件传输
-│   ├── facts.go            # setup 收集主机信息
-│   └── pkg.go              # 包管理工具抽象层（apt/yum）
+整体模式保持松耦合，模块通过注册表动态查找，方便后续按需扩展。
 
-├── inventory/              # 解析 hosts.yaml/ini 文件
-│   └── inventory.go
+## 2. 已经支持的模块
 
-cmd/
-├── ansible.go
-├── playbook.go
-├── plugin.go
-└── root.go
+当前 `internal/modules` 目录下提供以下内建模块：
 
-example/
-└── playbooks/
+| 模块名   | 功能简介                         |
+|---------|---------------------------------|
+| `shell`    | 在目标主机执行 shell 命令，支持变量渲染 |
+| `script`   | 上传并运行本地脚本                   |
+| `template` | 渲染 Go 模板并上传到远端               |
 
+Playbook 任务若未找到注册模块，则回退到同名内置处理，因此上述三个模块也是 CLI 默认支持的功能。
 
-```
+## 3. 需要开发扩展的
 
-### Subcommands (`cmd/`)
-- **root.go** – sets up the CLI and registers subcommands.
-- **ansible.go** – ad-hoc task execution. Supports `shell` and `script` modules.
-- **playbook.go** – runs a YAML playbook with `shell`, `script` and `template` tasks.
-- **vault.go** – placeholder for future encryption features.
-- **cmdb.go** – placeholder to export topology graphs.
-- **plugin.go** – placeholder for loading plugins.
+为了接近完整的 Ansible 能力，仍有若干模块和功能待实现，示例包括：
 
-### Core Modules (`core/`)
-- **executor/playbook.go** – iterates over plays and tasks and executes them using the SSH helpers. Supports roles by loading tasks from `roles/<role>/tasks/main.yaml`.
-- **parser/parser.go** – defines YAML structures (`Play`, `Task`, `Template`) and parses playbooks.
-- **cmdb/** – reserved for CMDB graph generation (not yet implemented).
+- **文件与包管理**：`copy`、`command`、`apt`、`yum` 等模块。
+- **变量相关**：`set_fact`、`register` 用于动态变量赋值及结果保存。
+- **条件与权限**：完善 `when` 表达式，支持 `become` 以 sudo 身份执行。
+- **信息收集**：`gather_facts` 模块，用于获取主机系统信息。
+- **插件与拓扑**：预留的 `plugin`、`cmdb` 子命令，将来可提供 WASM 扩展和架构导出能力。
 
-### Internal Libraries (`internal/`)
-- **inventory/inventory.go** – parses INI style inventory files and returns a list of `Host` structures.
-- **ssh/runner.go** – runs remote shell commands via SSH with key or password authentication.
-- **ssh/script.go** – uploads a local script using base64 and executes it remotely.
-- **ssh/template.go** – renders a Go template and uploads the result to the remote host.
-- **ssh/formatter.go** – utilities for aggregated output.
-- **ssh/result.go** – defines the `CommandResult` struct used across the executor.
-
-✅ 模块系统设计（internal/modules）
-types.go
-go
-复制
-编辑
-type TaskContext struct {
-  Host       inventory.Host
-  Vars       map[string]string
-  Task       parser.Task
-  WorkingDir string
-}
-
-type ModuleResult struct {
-  Host       string
-  Output     string
-  ReturnCode int
-  ReturnMsg  string
-}
-
-type TaskHandler func(TaskContext) ModuleResult
-registry.go
-go
-复制
-编辑
-var moduleRegistry = map[string]TaskHandler{}
-
-func RegisterModule(name string, handler TaskHandler) {
-  moduleRegistry[name] = handler
-}
-
-func GetHandler(name string) (TaskHandler, bool) {
-  h, ok := moduleRegistry[name]
-  return h, ok
-}
-每个模块如 copy.go
-go
-复制
-编辑
-func init() {
-  RegisterModule("copy", CopyHandler)
-}
-
-func CopyHandler(ctx TaskContext) ModuleResult {
-  // 使用 ssh.CopyFile，渲染变量，处理权限
-  ...
-}
-✅ 执行器改动：executor/playbook.go
-在每个任务类型分支前，尝试从 moduleRegistry 获取 Handler：
-
-go
-复制
-编辑
-if handler, ok := modules.GetHandler(task.Type()); ok {
-  res = handler(TaskContext{
-    Host: h,
-    Vars: hv,
-    Task: task,
-    WorkingDir: baseDir,
-  })
-} else {
-  res = ssh.CommandResult{
-    Host:       h.Name,
-    ReturnMsg:  "FAILED",
-    ReturnCode: 1,
-    Output:     fmt.Sprintf("Unsupported task type in '%s'", task.Name),
-  }
-}
-新增 task.Type() 方法判断类型，如：
-
-go
-复制
-编辑
-func (t Task) Type() string {
-  switch {
-  case t.Shell != "":
-    return "shell"
-  case t.Command != "":
-    return "command"
-  case t.Script != "":
-    return "script"
-  case t.Copy != nil:
-    return "copy"
-  case t.Yum != nil:
-    return "yum"
-  case t.Apt != nil:
-    return "apt"
-  ...
-  default:
-    return "unknown"
-  }
-}
-✅ 扩展功能设计建议
-功能模块	建议位置	实现细节
-set_fact	executor/variable.go	动态变量注入 map[string]string，生命周期限定
-register	executor/playbook.go	将 res.Output 保存为变量
-when	executor/condition.go	支持 ==, !=, bool 值判断
-gather_facts	ssh/facts.go	支持 uname, lsb_release, hostname 等
-become	ssh/runner.go	在 command/shell 执行前添加 sudo 前缀（可选实现）
-delegate_to	暂不实现	复杂跨主机跳转，初期可忽略
+社区或开发者可根据模块注册机制，自行扩展以上能力或添加新的功能模块。
