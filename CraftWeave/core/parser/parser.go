@@ -13,12 +13,50 @@ type Template struct {
 	Dest string `yaml:"dest"`
 }
 
+type Copy struct {
+	Src  string `yaml:"src"`
+	Dest string `yaml:"dest"`
+	Mode string `yaml:"mode,omitempty"`
+}
+
+type Stat struct {
+	Path string `yaml:"path"`
+}
+
+type PackageAction struct {
+	Name  string `yaml:"name,omitempty"`
+	Deb   string `yaml:"deb,omitempty"`
+	State string `yaml:"state,omitempty"`
+}
+
+type ServiceAction struct {
+	Name    string `yaml:"name"`
+	State   string `yaml:"state"`
+	Enabled bool   `yaml:"enabled,omitempty"`
+}
+
+type MessageAction struct {
+	Msg string `yaml:"msg"`
+}
+
 type Task struct {
-	Name     string    `yaml:"name"`
-	When     string    `yaml:"when,omitempty"`
-	Shell    string    `yaml:"shell,omitempty"`
-	Script   string    `yaml:"script,omitempty"`
-	Template *Template `yaml:"template,omitempty"`
+	Name     string            `yaml:"name"`
+	When     string            `yaml:"when,omitempty"`
+	Shell    string            `yaml:"shell,omitempty"`
+	Script   string            `yaml:"script,omitempty"`
+	Template *Template         `yaml:"template,omitempty"`
+	Command  string            `yaml:"command,omitempty"`
+	Copy     *Copy             `yaml:"copy,omitempty"`
+	Stat     *Stat             `yaml:"stat,omitempty"`
+	Apt      *PackageAction    `yaml:"apt,omitempty"`
+	Yum      *PackageAction    `yaml:"yum,omitempty"`
+	Systemd  *ServiceAction    `yaml:"systemd,omitempty"`
+	Service  *ServiceAction    `yaml:"service,omitempty"`
+	Setup    bool              `yaml:"setup,omitempty"`
+	SetFact  map[string]string `yaml:"set_fact,omitempty"`
+	Fail     *MessageAction    `yaml:"fail,omitempty"`
+	Debug    *MessageAction    `yaml:"debug,omitempty"`
+	Register string            `yaml:"register,omitempty"`
 }
 
 // Type returns the module name associated with this task.
@@ -26,10 +64,32 @@ func (t Task) Type() string {
 	switch {
 	case t.Shell != "":
 		return "shell"
+	case t.Command != "":
+		return "command"
 	case t.Script != "":
 		return "script"
 	case t.Template != nil:
 		return "template"
+	case t.Copy != nil:
+		return "copy"
+	case t.Stat != nil:
+		return "stat"
+	case t.Apt != nil:
+		return "apt"
+	case t.Yum != nil:
+		return "yum"
+	case t.Systemd != nil:
+		return "systemd"
+	case t.Service != nil:
+		return "service"
+	case t.Setup:
+		return "setup"
+	case len(t.SetFact) > 0:
+		return "set_fact"
+	case t.Fail != nil:
+		return "fail"
+	case t.Debug != nil:
+		return "debug"
 	default:
 		return ""
 	}
