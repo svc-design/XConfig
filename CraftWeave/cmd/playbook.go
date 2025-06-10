@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"craftweave/core/executor"
 	"craftweave/core/parser"
@@ -22,15 +21,9 @@ var playbookCmd = &cobra.Command{
 		file := args[0]
 		fmt.Printf("📜 Executing playbook: %s\n", file)
 
-		data, err := os.ReadFile(file)
+		plays, err := parser.LoadPlaybook(file)
 		if err != nil {
-			fmt.Printf("❌ Failed to read playbook: %v\n", err)
-			os.Exit(1)
-		}
-
-		var plays []parser.Play
-		if err := yaml.Unmarshal(data, &plays); err != nil {
-			fmt.Printf("❌ Failed to parse YAML: %v\n", err)
+			fmt.Printf("❌ Failed to load playbook: %v\n", err)
 			os.Exit(1)
 		}
 
