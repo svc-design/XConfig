@@ -3,18 +3,30 @@
 set -e
 
 ####################################
-# 🌐 配置区：需根据实际环境修改
+# 🌐 配置区
 ####################################
 
-IP_LIST="./ip.list"  # 定义主机清单文件路径，每行格式为：IP USER PASSWORD
-SERVICE_NAME="deepflow-agent"  # 定义要操作的服务名称（deepflow-agent）
-PKG_DIR="deepflow-agent-for-linux"  # 存放各平台 RPM 包的目录
+IP_LIST="./ip.list"
+SERVICE_NAME="deepflow-agent"
+PKG_DIR="deepflow-agent-for-linux"
+MAX_PARALLEL=5  # 可调：最大并发数
 
 # === 默认值，可通过参数覆盖 ===
 CONTROLLER_IP=""
 VTAP_GROUP_ID=""
 
-# === 参数解析 ===
+# === SSH 通用选项（含超时 15 秒）
+SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=15"
+
+####################################
+# 参数解析
+####################################
+
+if [[ $# -eq 0 ]]; then
+  echo "用法: $0 {deploy|upgrade|verify} --controller <ip> --group <id>"
+  exit 1
+fi
+
 ACTION="$1"
 shift
 
@@ -35,7 +47,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# 检查参数完整性
+
 if [[ "$ACTION" != "deploy" && "$ACTION" != "upgrade" && "$ACTION" != "verify" ]]; then
   echo "用法: $0 {deploy|upgrade|verify} --controller <ip> --group <id>"
   exit 1
@@ -46,32 +58,70 @@ if [[ "$ACTION" != "verify" && ( -z "$CONTROLLER_IP" || -z "$VTAP_GROUP_ID" ) ]]
   exit 1
 fi
 
+####################################
+# 核心函数
+####################################
+
+worker() {
+  local ip="$1"
+  local user="$2"
+  local pass="$3"
+
+  echo "🔧 [$ACTION] 处理主机 $ip ($user)"
+
+  if [[ "$ACTION" == "verify" ]]; then
+    verify_agent "$ip" "$user" "$pass"
+    return
+  fi
+
+  local remote_info arch init pkg_type
+
+  remote_info=$(fetch_remote_info "$ip" "$user" "$pass") || {
+    echo "❌ $ip 获取远程信息失败"
+    return
+  }
+
+  arch=$(echo "$remote_info" | cut -d'|' -f1)
+  init=$(echo "$remote_info" | cut -d'|' -f2)
+  pkg_type=$(echo "$remote_info" | cut -d'|' -f3)
+
+  if [[ "$init" == "unknown" || "$pkg_type" == "unknown" ]]; then
+    echo "❌ $ip 不支持的初始化或包管理器: $init/$pkg_type"
+    return
+  fi
+
+  pkg_path=$(choose_agent_package "$arch" "$init" "$pkg_type")
+
+  if [[ "$pkg_path" == "UNSUPPORTED" ]]; then
+    echo "❌ $ip 无匹配安装包: $arch/$init/$pkg_type"
+    return
+  fi
+
+  install_agent "$ip" "$user" "$pass" "$pkg_path" && update_config "$ip" "$user" "$pass"
+  echo "✅ $ip $ACTION 完成"
+  echo "-------------------------------------------"
+}
+
+fetch_remote_info() {
+  local ip="$1"
+  local user="$2"
+  local pass="$3"
+
+  sshpass -p "$pass" ssh $SSH_OPTS "$user@$ip" bash <<'EOF'
+arch=$(uname -m)
+if command -v systemctl >/dev/null; then init=systemd;
+elif command -v initctl >/dev/null; then init=upstart;
+else init=unknown; fi
+if command -v rpm >/dev/null; then pkg=rpm;
+elif command -v dpkg >/dev/null; then pkg=deb;
+else pkg=unknown; fi
+echo "${arch}|${init}|${pkg}"
+EOF
+}
+
 choose_agent_package() {
-  local arch="$1"
-  local init=""
-  local pkg=""
+  local arch="$1" init="$2" pkg_type="$3"
 
-  init=$(sshpass -p "$pass" ssh -o StrictHostKeyChecking=no "$user@$ip" '
-    if command -v systemctl >/dev/null; then echo systemd;
-    elif command -v initctl >/dev/null; then echo upstart;
-    else echo unknown; fi')
-
-  if [[ "$init" == "unknown" ]]; then
-    echo "UNSUPPORTED"
-    return
-  fi
-
-  pkg_type=$(sshpass -p "$pass" ssh -o StrictHostKeyChecking=no "$user@$ip" '
-    if command -v rpm >/dev/null; then echo rpm;
-    elif command -v dpkg >/dev/null; then echo deb;
-    else echo unknown; fi')
-
-  if [[ "$pkg_type" == "unknown" ]]; then
-    echo "UNSUPPORTED"
-    return
-  fi
-
-  # 查找匹配初始化系统和包格式的文件，优先考虑带架构字段的，降级用通用版
   pkg=$(find "$PKG_DIR" -type f \( \
     -name "deepflow-agent-*.$init-*.$pkg_type" -o \
     -name "deepflow-agent-*.$init.$pkg_type" \) | sort -V | tail -1)
@@ -84,18 +134,13 @@ choose_agent_package() {
 }
 
 install_agent() {
-  local ip="$1"
-  local user="$2"
-  local pass="$3"
-  local pkg_path="$4"
-
+  local ip="$1" user="$2" pass="$3" pkg_path="$4"
   local remote_pkg="/tmp/agent.${pkg_path##*.}"
 
-  sshpass -p "$pass" scp -o StrictHostKeyChecking=no "$pkg_path" "$user@$ip:$remote_pkg"
+  sshpass -p "$pass" scp $SSH_OPTS "$pkg_path" "$user@$ip:$remote_pkg"
 
-  sshpass -p "$pass" ssh -o StrictHostKeyChecking=no "$user@$ip" bash <<EOF
+  sshpass -p "$pass" ssh $SSH_OPTS "$user@$ip" bash <<EOF
 set -e
-
 if [[ "$remote_pkg" == *.rpm ]]; then
   rpm -Uvh --replacepkgs "$remote_pkg"
 elif [[ "$remote_pkg" == *.deb ]]; then
@@ -120,11 +165,8 @@ EOF
 }
 
 update_config() {
-  local ip="$1"
-  local user="$2"
-  local pass="$3"
-
-  sshpass -p "$pass" ssh -o StrictHostKeyChecking=no "$user@$ip" bash <<EOF
+  local ip="$1" user="$2" pass="$3"
+  sshpass -p "$pass" ssh $SSH_OPTS "$user@$ip" bash <<EOF
 set -e
 CONFIG_FILE="/etc/deepflow-agent.yaml"
 mkdir -p \$(dirname \$CONFIG_FILE)
@@ -139,35 +181,30 @@ EOF
 }
 
 verify_agent() {
-  local ip="$1"
-  local user="$2"
-  local pass="$3"
+  local ip="$1" user="$2" pass="$3"
   echo "🔍 $ip 状态检查："
-  sshpass -p "$pass" ssh -o StrictHostKeyChecking=no "$user@$ip" "
+  sshpass -p "$pass" ssh $SSH_OPTS "$user@$ip" "
     systemctl is-active $SERVICE_NAME 2>/dev/null || \
     service $SERVICE_NAME status || \
     initctl status $SERVICE_NAME
   "
 }
 
+####################################
+# 控制并发执行主逻辑
+####################################
+
+# 简单并发控制函数 (纯 Bash 无需 parallel)
+sem(){
+  while [[ $(jobs -r | wc -l) -ge $MAX_PARALLEL ]]; do
+    sleep 0.5
+  done
+}
+
 while read -r ip user pass; do
-  echo "🔧 [$ACTION] 处理主机 $ip ($user)"
-
-  if [[ "$ACTION" == "verify" ]]; then
-    verify_agent "$ip" "$user" "$pass"
-    continue
-  fi
-
-  arch=$(sshpass -p "$pass" ssh -o StrictHostKeyChecking=no "$user@$ip" "uname -m")
-  pkg_path=$(choose_agent_package "$arch")
-
-  if [[ "$pkg_path" == "UNSUPPORTED" ]]; then
-    echo "❌ 不支持的系统架构或未找到匹配包: $arch"
-    continue
-  fi
-
-  install_agent "$ip" "$user" "$pass" "$pkg_path"
-  update_config "$ip" "$user" "$pass"
-  echo "✅ $ip $ACTION 完成"
-  echo "-------------------------------------------"
+  sem
+  worker "$ip" "$user" "$pass" &
 done < "$IP_LIST"
+
+wait
+echo "🎯 全部任务执行完成"
