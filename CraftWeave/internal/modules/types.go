@@ -10,6 +10,7 @@ import (
 type Context struct {
 	Host inventory.Host
 	Vars map[string]string
+	Diff bool
 }
 
 // TaskHandler executes a task and returns the result.
