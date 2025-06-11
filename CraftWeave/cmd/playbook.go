@@ -27,7 +27,7 @@ var playbookCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		exec := executor.New(AggregateOutput, CheckMode)
+		exec := executor.New(AggregateOutput, CheckMode, DiffMode)
 		exec.MaxWorkers = MaxWorkers
 		exec.Execute(plays, inventoryPath)
 	},

@@ -13,13 +13,14 @@ import (
 type Executor struct {
 	AggregateOutput bool
 	CheckMode       bool
+	DiffMode        bool
 	MaxWorkers      int
 	Logger          LogCollector
 }
 
 // New creates a new Executor.
-func New(aggregate, check bool) *Executor {
-	return &Executor{AggregateOutput: aggregate, CheckMode: check, MaxWorkers: 5}
+func New(aggregate, check, diff bool) *Executor {
+	return &Executor{AggregateOutput: aggregate, CheckMode: check, DiffMode: diff, MaxWorkers: 5}
 }
 
 // SetLogger configures a log collector for execution results.
@@ -93,7 +94,7 @@ func (e *Executor) Execute(playbook []parser.Play, inventoryPath string) {
 						return
 					}
 
-					res := ExecuteTask(task, h, vars)
+					res := ExecuteTask(task, h, vars, e.DiffMode)
 					mu.Lock()
 					results = append(results, res)
 					hs := stats[h.Name]

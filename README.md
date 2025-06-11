@@ -90,6 +90,7 @@ craftweave playbook -i example/inventory example/deploy_deepflow_agent
 |-------------------|----------------------------------------------------|
 | `--aggregate`, `-A` | 聚合输出相同结果的主机（大规模场景推荐）         |
 | `--check`, `-C`     | Dry-run 模式，不实际执行命令（TODO）              |
+| `--diff`, `-D`      | 当修改文件和模板时显示差异                         |
 | `--extra-vars`, `-e` | 运行时变量，覆盖 Playbook 中的 `vars`             |
 
 # 控制端（Go 实现）
