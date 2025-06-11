@@ -56,15 +56,19 @@ craftweave ansible all -i example/inventory -m script -a example/uname.sh
 
 craftweave ansible all -i example/inventory -m shell -a 'id' -C
 
-8. 指定单个主机运行命令
+8. 显示文件或模板差异（可与 -A、-C 组合）
+
+craftweave ansible all -i example/inventory -m template -a "example.j2:/tmp/out.yml" -D -C -A
+
+9. 指定单个主机运行命令
 
 craftweave ansible cn-hub -i example/inventory -m shell -a 'uptime'
 
-9. 聚合输出执行脚本结果
+10. 聚合输出执行脚本结果
 
 craftweave ansible all -i example/inventory -m script -a example/nproc.sh --aggregate
 
-10. 运行 Playbook 文件
+11. 运行 Playbook 文件
 
 craftweave playbook -i example/inventory example/run_example -i example/inventory
 
