@@ -27,6 +27,7 @@ func (e *Executor) SetLogger(l LogCollector) { e.Logger = l }
 
 // Execute processes and runs the given playbook.
 func (e *Executor) Execute(playbook []parser.Play, inventoryPath string) {
+	stats := make(map[string]*hostStats)
 	for i := range playbook {
 		play := &playbook[i]
 		if play.Vars == nil {
@@ -52,6 +53,9 @@ func (e *Executor) Execute(playbook []parser.Play, inventoryPath string) {
 		hostVars := make(map[string]map[string]string, len(hosts))
 		for _, h := range hosts {
 			hostVars[h.Name] = copyVars(play.Vars)
+			if _, ok := stats[h.Name]; !ok {
+				stats[h.Name] = &hostStats{}
+			}
 		}
 
 		for _, task := range play.Tasks {
@@ -78,6 +82,10 @@ func (e *Executor) Execute(playbook []parser.Play, inventoryPath string) {
 						res := ssh.CommandResult{Host: h.Name, ReturnMsg: "SKIPPED", ReturnCode: 0, Output: fmt.Sprintf("dry-run: %s", task.Name)}
 						mu.Lock()
 						results = append(results, res)
+						hs := stats[h.Name]
+						if hs != nil {
+							hs.Skipped++
+						}
 						mu.Unlock()
 						if e.Logger != nil {
 							e.Logger.Collect(res)
@@ -88,6 +96,19 @@ func (e *Executor) Execute(playbook []parser.Play, inventoryPath string) {
 					res := ExecuteTask(task, h, vars)
 					mu.Lock()
 					results = append(results, res)
+					hs := stats[h.Name]
+					if hs != nil {
+						switch res.ReturnMsg {
+						case "OK":
+							hs.OK++
+						case "CHANGED":
+							hs.Changed++
+						case "FAILED":
+							hs.Failed++
+						case "SKIPPED":
+							hs.Skipped++
+						}
+					}
 					mu.Unlock()
 					if e.Logger != nil {
 						e.Logger.Collect(res)
@@ -105,4 +126,5 @@ func (e *Executor) Execute(playbook []parser.Play, inventoryPath string) {
 			}
 		}
 	}
+	printRecap(stats)
 }
