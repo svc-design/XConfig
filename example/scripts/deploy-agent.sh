@@ -9,21 +9,25 @@ set -e
 IP_LIST="./ip.list"
 SERVICE_NAME="deepflow-agent"
 PKG_DIR="deepflow-agent-for-linux"
-MAX_PARALLEL=5  # 可调：最大并发数
+MAX_PARALLEL=5
 
-# === 默认值，可通过参数覆盖 ===
 CONTROLLER_IP=""
 VTAP_GROUP_ID=""
+LIMIT=""
 
-# === SSH 通用选项（含超时 15 秒）
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=15"
+
+FAILED_FILE="failed_hosts.txt"
+SUCCESS_FILE="success_hosts.txt"
+> "$FAILED_FILE"
+> "$SUCCESS_FILE"
 
 ####################################
 # 参数解析
 ####################################
 
 if [[ $# -eq 0 ]]; then
-  echo "用法: $0 {deploy|upgrade|verify} --controller <ip> --group <id>"
+  echo "用法: $0 {deploy|upgrade|verify} --controller <ip> --group <id> [--limit ip1,ip2]"
   exit 1
 fi
 
@@ -40,6 +44,10 @@ while [[ $# -gt 0 ]]; do
       VTAP_GROUP_ID="$2"
       shift 2
       ;;
+    --limit)
+      LIMIT="$2"
+      shift 2
+      ;;
     *)
       echo "未知参数: $1"
       exit 1
@@ -47,9 +55,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-
 if [[ "$ACTION" != "deploy" && "$ACTION" != "upgrade" && "$ACTION" != "verify" ]]; then
-  echo "用法: $0 {deploy|upgrade|verify} --controller <ip> --group <id>"
+  echo "用法: $0 {deploy|upgrade|verify} --controller <ip> --group <id> [--limit ip1,ip2]"
   exit 1
 fi
 
@@ -70,64 +77,95 @@ worker() {
   echo "🔧 [$ACTION] 处理主机 $ip ($user)"
 
   if [[ "$ACTION" == "verify" ]]; then
-    verify_agent "$ip" "$user" "$pass"
-    return
+    verify_agent "$ip" "$user" "$pass" && {
+      echo "$ip" >> "$SUCCESS_FILE"
+      return
+    } || {
+      echo "$ip" >> "$FAILED_FILE"
+      return
+    }
   fi
-
-  local remote_info arch init pkg_type
 
   remote_info=$(fetch_remote_info "$ip" "$user" "$pass") || {
     echo "❌ $ip 获取远程信息失败"
+    echo "$ip" >> "$FAILED_FILE"
     return
   }
 
   arch=$(echo "$remote_info" | cut -d'|' -f1)
   init=$(echo "$remote_info" | cut -d'|' -f2)
-  pkg_type=$(echo "$remote_info" | cut -d'|' -f3)
 
-  if [[ "$init" == "unknown" || "$pkg_type" == "unknown" ]]; then
-    echo "❌ $ip 不支持的初始化或包管理器: $init/$pkg_type"
+  if [[ "$init" == "unknown" ]]; then
+    echo "❌ $ip 不支持的初始化系统: $init"
+    echo "$ip" >> "$FAILED_FILE"
     return
   fi
 
-  pkg_path=$(choose_agent_package "$arch" "$init" "$pkg_type")
+  pkg_path=$(choose_agent_package "$arch" "$init")
 
   if [[ "$pkg_path" == "UNSUPPORTED" ]]; then
-    echo "❌ $ip 无匹配安装包: $arch/$init/$pkg_type"
+    echo "❌ $ip 无匹配安装包: $arch/$init"
+    echo "$ip" >> "$FAILED_FILE"
     return
   fi
 
-  install_agent "$ip" "$user" "$pass" "$pkg_path" && update_config "$ip" "$user" "$pass"
-  echo "✅ $ip $ACTION 完成"
+  install_agent "$ip" "$user" "$pass" "$pkg_path" && update_config "$ip" "$user" "$pass" && {
+    echo "✅ $ip $ACTION 完成"
+    echo "$ip" >> "$SUCCESS_FILE"
+  } || {
+    echo "❌ $ip 安装或配置失败"
+    echo "$ip" >> "$FAILED_FILE"
+  }
+
   echo "-------------------------------------------"
 }
 
 fetch_remote_info() {
-  local ip="$1"
-  local user="$2"
-  local pass="$3"
+  local ip="$1" user="$2" pass="$3"
 
   sshpass -p "$pass" ssh $SSH_OPTS "$user@$ip" bash <<'EOF'
 arch=$(uname -m)
+case "$arch" in
+  aarch64|arm64) arch="arm" ;;
+  *) arch="x86" ;;
+esac
+
 if command -v systemctl >/dev/null; then init=systemd;
 elif command -v initctl >/dev/null; then init=upstart;
 else init=unknown; fi
-if command -v rpm >/dev/null; then pkg=rpm;
-elif command -v dpkg >/dev/null; then pkg=deb;
-else pkg=unknown; fi
-echo "${arch}|${init}|${pkg}"
+
+echo "${arch}|${init}"
 EOF
 }
 
 choose_agent_package() {
-  local arch="$1" init="$2" pkg_type="$3"
+  local arch="$1" init="$2"
 
-  pkg=$(find "$PKG_DIR" -type f \( \
-    -name "deepflow-agent-*.$init-*.$pkg_type" -o \
-    -name "deepflow-agent-*.$init.$pkg_type" \) | sort -V | tail -1)
+  shopt -s nullglob
 
-  if [[ -n "$pkg" ]]; then
-    echo "$pkg"
+  declare -a patterns
+
+  if [[ "$arch" == "arm" ]]; then
+    patterns=("$PKG_DIR"/deepflow-agent-*.$init-arm.* \
+              "$PKG_DIR"/deepflow-agent-*.$init-arm64.* \
+              "$PKG_DIR"/deepflow-agent-*.$init-aarch64.*)
+  else
+    patterns=("$PKG_DIR"/deepflow-agent-*.$init-x86.* \
+              "$PKG_DIR"/deepflow-agent-*.$init.*)
+  fi
+
+  files=()
+
+  for pattern in "${patterns[@]}"; do
+    for file in $pattern; do
+      files+=("$file")
+    done
+  done
+
+  if [[ ${#files[@]} -gt 0 ]]; then
+    latest=$(printf "%s\n" "${files[@]}" | sort -V | tail -1)
+    echo "🎯 选择安装包: $latest" >&2
+    echo "$latest"
   else
     echo "UNSUPPORTED"
   fi
@@ -141,23 +179,25 @@ install_agent() {
 
   sshpass -p "$pass" ssh $SSH_OPTS "$user@$ip" bash <<EOF
 set -e
+if command -v sudo >/dev/null; then SUDO="sudo"; else SUDO=""; fi
+
 if [[ "$remote_pkg" == *.rpm ]]; then
-  rpm -Uvh --replacepkgs "$remote_pkg"
+  \$SUDO rpm -Uvh --replacepkgs "$remote_pkg"
 elif [[ "$remote_pkg" == *.deb ]]; then
-  dpkg -i "$remote_pkg" || apt-get install -f -y
+  \$SUDO dpkg -i "$remote_pkg" || \$SUDO apt-get install -f -y
 else
   echo "❌ 不支持的安装包格式"
   exit 1
 fi
 
 if command -v systemctl &>/dev/null; then
-  systemctl enable $SERVICE_NAME
-  systemctl restart $SERVICE_NAME
+  \$SUDO systemctl enable $SERVICE_NAME
+  \$SUDO systemctl restart $SERVICE_NAME
 elif command -v service &>/dev/null; then
-  service $SERVICE_NAME restart
-  chkconfig $SERVICE_NAME on
+  \$SUDO service $SERVICE_NAME restart
+  \$SUDO chkconfig $SERVICE_NAME on
 elif command -v initctl &>/dev/null; then
-  initctl restart $SERVICE_NAME || initctl start $SERVICE_NAME
+  \$SUDO initctl restart $SERVICE_NAME || \$SUDO initctl start $SERVICE_NAME
 else
   echo "❌ 无法识别服务管理方式"
 fi
@@ -168,15 +208,16 @@ update_config() {
   local ip="$1" user="$2" pass="$3"
   sshpass -p "$pass" ssh $SSH_OPTS "$user@$ip" bash <<EOF
 set -e
+if command -v sudo >/dev/null; then SUDO="sudo"; else SUDO=""; fi
 CONFIG_FILE="/etc/deepflow-agent.yaml"
-mkdir -p \$(dirname \$CONFIG_FILE)
-cat > "\$CONFIG_FILE" <<CFG
+\$SUDO mkdir -p \$(dirname \$CONFIG_FILE)
+cat <<CFG | \$SUDO tee "\$CONFIG_FILE" >/dev/null
 controller-ips:
   - $CONTROLLER_IP
 vtap-group-id: "$VTAP_GROUP_ID"
 CFG
-chmod 644 "\$CONFIG_FILE"
-chown root:root "\$CONFIG_FILE"
+\$SUDO chmod 644 "\$CONFIG_FILE"
+\$SUDO chown root:root "\$CONFIG_FILE"
 EOF
 }
 
@@ -191,10 +232,9 @@ verify_agent() {
 }
 
 ####################################
-# 控制并发执行主逻辑
+# 并发控制主逻辑
 ####################################
 
-# 简单并发控制函数 (纯 Bash 无需 parallel)
 sem(){
   while [[ $(jobs -r | wc -l) -ge $MAX_PARALLEL ]]; do
     sleep 0.5
@@ -202,9 +242,25 @@ sem(){
 }
 
 while read -r ip user pass; do
+  if [[ -n "$LIMIT" ]]; then
+    IFS=',' read -ra LIMIT_IPS <<< "$LIMIT"
+    skip=true
+    for lim_ip in "${LIMIT_IPS[@]}"; do
+      [[ "$ip" == "$lim_ip" ]] && skip=false
+    done
+    $skip && continue
+  fi
+
   sem
   worker "$ip" "$user" "$pass" &
 done < "$IP_LIST"
 
 wait
-echo "🎯 全部任务执行完成"
+
+TOTAL_SUCCESS=$(wc -l < "$SUCCESS_FILE")
+TOTAL_FAIL=$(wc -l < "$FAILED_FILE")
+
+echo "🎯 全部任务执行完成: 成功 $TOTAL_SUCCESS 台，失败 $TOTAL_FAIL 台"
+if [[ -s "$FAILED_FILE" ]]; then
+  echo "❗ 失败主机列表已保存: $FAILED_FILE"
+fi
