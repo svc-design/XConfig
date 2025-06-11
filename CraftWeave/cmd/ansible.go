@@ -53,7 +53,7 @@ var ansibleCmd = &cobra.Command{
 					return
 				}
 
-				res := executor.ExecuteTask(task, h, nil)
+				res := executor.ExecuteTask(task, h, nil, DiffMode)
 				collector.Collect(res)
 			}(h)
 		}

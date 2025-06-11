@@ -10,8 +10,8 @@ import (
 )
 
 // ExecuteTask dispatches the task to the appropriate module handler.
-func ExecuteTask(task parser.Task, host inventory.Host, vars map[string]string) ssh.CommandResult {
-	ctx := modules.Context{Host: host, Vars: vars}
+func ExecuteTask(task parser.Task, host inventory.Host, vars map[string]string, diff bool) ssh.CommandResult {
+	ctx := modules.Context{Host: host, Vars: vars, Diff: diff}
 
 	var res ssh.CommandResult
 	if h, ok := modules.GetHandler(task.Type()); ok {
@@ -23,7 +23,7 @@ func ExecuteTask(task parser.Task, host inventory.Host, vars map[string]string) 
 		case task.Script != "":
 			res = ssh.RunRemoteScript(host, task.Script)
 		case task.Template != nil:
-			res = ssh.RenderTemplate(host, task.Template.Src, task.Template.Dest, vars)
+			res = ssh.RenderTemplate(host, task.Template.Src, task.Template.Dest, vars, diff)
 		default:
 			res = ssh.CommandResult{Host: host.Name, ReturnMsg: "FAILED", ReturnCode: 1, Output: fmt.Sprintf("Unsupported task type in '%s'", task.Name)}
 		}
