@@ -1,4 +1,5 @@
 #!/bin/bash
+# FIX config vtap-group-id-request 20250612-15:10
 
 set -e
 
@@ -214,7 +215,7 @@ CONFIG_FILE="/etc/deepflow-agent.yaml"
 cat <<CFG | \$SUDO tee "\$CONFIG_FILE" >/dev/null
 controller-ips:
   - $CONTROLLER_IP
-vtap-group-id: "$VTAP_GROUP_ID"
+vtap-group-id-request: "$VTAP_GROUP_ID"
 CFG
 \$SUDO chmod 644 "\$CONFIG_FILE"
 \$SUDO chown root:root "\$CONFIG_FILE"
