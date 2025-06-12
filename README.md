@@ -74,9 +74,9 @@ craftweave playbook -i example/inventory example/run_example -i example/inventor
 
 可选：执行更复杂的示例
 
-craftweave playbook -i example/inventory example/playbooks/system-check.yaml 
-craftweave playbook -i example/inventory example/playbooks/set-password.yml -e password=YOURPASS
-craftweave playbook -i example/inventory example/deploy_deepflow_agent
+- craftweave playbook -i example/inventory example/playbooks/system-check.yaml 
+- craftweave playbook -i example/inventory example/playbooks/set-password.yml -e password=YOURPASS
+- craftweave playbook -i example/inventory example/deploy_deepflow_agent
 
 # 📦 Agent 支持命令说明
 
