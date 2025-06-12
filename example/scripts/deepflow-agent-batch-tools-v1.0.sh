@@ -147,9 +147,7 @@ choose_agent_package() {
   declare -a patterns
 
   if [[ "$arch" == "arm" ]]; then
-    patterns=("$PKG_DIR"/deepflow-agent-*.$init-arm.* \
-              "$PKG_DIR"/deepflow-agent-*.$init-arm64.* \
-              "$PKG_DIR"/deepflow-agent-*.$init-aarch64.*)
+    patterns=("$PKG_DIR"/deepflow-agent-*.$init.aarch64.*)
   else
     patterns=("$PKG_DIR"/deepflow-agent-*.$init-x86.* \
               "$PKG_DIR"/deepflow-agent-*.$init.*)
