@@ -1,11 +1,16 @@
 [all]
-cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
-#global-hub     ansible_host=167.179.72.223     ansible_ssh_user=root
-#icp-huawei     ansible_host=139.9.139.22       ansible_ssh_user=root
-#icp-aliyun     ansible_host=47.120.61.35       ansible_ssh_user=root
-#tky-proxy      ansible_host=52.196.108.28      ansible_ssh_user=ubuntu
-#us-proxy       ansible_host=54.183.32.0        ansible_ssh_user=ubuntu
-#ca-proxy       ansible_host=3.98.174.218       ansible_ssh_user=ubuntu
+
+[hub]
+cn-hub                  ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
+global-hub              ansible_host=167.179.72.223     ansible_ssh_user=root
+icp-huawei              ansible_host=139.9.139.22       ansible_ssh_user=root
+icp-aliyun              ansible_host=47.120.61.35       ansible_ssh_user=root
+
+[proxy]
+tky-proxy               ansible_host=52.196.108.28      ansible_ssh_user=ubuntu
+us-proxy                ansible_host=54.183.32.0        ansible_ssh_user=ubuntu
+ca-proxy                ansible_host=3.98.174.218       ansible_ssh_user=ubuntu
+
 
 [all:vars]
 domain='svc.plus'
