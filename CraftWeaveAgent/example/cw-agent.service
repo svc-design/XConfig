@@ -1,5 +1,5 @@
 [Unit]
-Description=CraftWeave Agent Service
+Description=Xconfig Agent Service
 After=network.target
 
 [Service]

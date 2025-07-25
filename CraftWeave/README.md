@@ -1,16 +1,16 @@
-# CraftWeave
+# Xconfig
 
-**CraftWeave** 是一个使用 Go 编写的 Ansible-like 工具，支持任务执行、架构编织、图模型导出与插件扩展。
+**Xconfig** 是一个使用 Go 编写的 Ansible-like 工具，支持任务执行、架构编织、图模型导出与插件扩展。
 
 ---
 
 ## 🧩 特性
 
-- 🛠️ `craftweave ansible`：执行单条远程命令（支持 shell 模块）
-- 📜 `craftweave playbook`：运行 YAML Playbook
-- 🔐 `craftweave vault`：加解密配置(Todo)
-- 🧠 `craftweave cmdb`：输出图数据库模型(Todo)
-- 🧩 `craftweave plugin`：加载并运行插件（Todo 支持 WASM）
+- 🛠️ `xconfig remote`：执行单条远程命令（支持 shell 模块）
+- 📜 `xconfig playbook`：运行 YAML Playbook
+- 🔐 `xconfig vault`：加解密配置(Todo)
+- 🧠 `xconfig cmdb`：输出图数据库模型(Todo)
+- 🧩 `xconfig plugin`：加载并运行插件（Todo 支持 WASM）
 
 ---
 
@@ -30,10 +30,10 @@ cn-hub         ansible_host=1.15.155.245       ansible_ssh_user=ubuntu
 ansible_port=22
 ansible_ssh_private_key_file=~/.ssh/id_rsa
 
-3. 执行命令： ./craftweave ansible all -i example/inventory -m shell -a 'id'
+3. 执行命令： ./xconfig remote all -i example/inventory -m shell -a 'id'
 4. 输出示例：
 ```
-🧶 欢迎使用：CraftWeave - 任务与架构编织工具
+🧶 欢迎使用：Xconfig - 任务与架构编织工具
 deepflow-demo | CHANGED | rc=0 >>
 uid=1000(shenlan) gid=1000(shenlan) groups=1000(shenlan),10(wheel)
 
@@ -44,12 +44,12 @@ uid=1000(ubuntu) gid=1001(ubuntu) groups=1001(ubuntu),27(sudo),
 
 5. 支持 dry-run 模式：
 
-craftweave ansible all -i example/inventory -m shell -a 'id' -C
+xconfig remote all -i example/inventory -m shell -a 'id' -C
 
 
 6. 聚合输出（推荐用于大规模场景）
 
-craftweave ansible all -i example/inventory -m shell -a 'id' --aggregate
+xconfig remote all -i example/inventory -m shell -a 'id' --aggregate
 
 示例输出：
 ```
@@ -66,9 +66,9 @@ uid=0(root) gid=0(root) groups=0(root)
 ```bash
 chmod +x example/*.sh
 
-./craftweave ansible -i example/inventory all -m script -a example/echo.sh
-./craftweave ansible -i example/inventory all -m script -a example/uname.sh --aggregate
-./craftweave ansible -i example/inventory all -m script -a example/nproc.sh --aggregate
+./xconfig remote -i example/inventory all -m script -a example/echo.sh
+./xconfig remote -i example/inventory all -m script -a example/uname.sh --aggregate
+./xconfig remote -i example/inventory all -m script -a example/nproc.sh --aggregate
 ```bash
 ```
 
@@ -83,10 +83,10 @@ chmod +x example/*.sh
 # 📁 项目结构
 
 ```
-CraftWeave/
+Xconfig/
 ├── cmd/                  # Cobra 命令定义
 │   ├── root.go           # 根命令
-│   ├── ansible.go        # 类 ansible 子命令
+│   ├── remote.go        # 类 ansible 子命令
 │   ├── playbook.go       # 执行 playbook
 │   ├── vault.go          # 加解密相关
 │   ├── cmdb.go           # 输出图模型
@@ -116,6 +116,6 @@ CraftWeave/
 
 # 🔮 愿景
 
-CraftWeave 旨在成为下一代 DevOps 工具 —— 融合任务调度、架构可视化与智能插件能力，支持轻量化、模块化和智能化的运维体验。
+Xconfig 旨在成为下一代 DevOps 工具 —— 融合任务调度、架构可视化与智能插件能力，支持轻量化、模块化和智能化的运维体验。
 
 > 辅以 🤖 ChatGPT 之力，愿你我皆成 AIGC 时代的创造者与编织者 🚀

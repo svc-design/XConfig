@@ -14,8 +14,8 @@ import (
 
 var module, args string
 
-var ansibleCmd = &cobra.Command{
-	Use:   "ansible [target]",
+var remoteCmd = &cobra.Command{
+	Use:   "remote [target]",
 	Short: "Run ad-hoc tasks on target hosts",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, targets []string) {
@@ -72,11 +72,11 @@ var ansibleCmd = &cobra.Command{
 }
 
 func init() {
-	ansibleCmd.Flags().StringVarP(&InventoryPath, "inventory", "i", "hosts.yaml", "Inventory file")
-	ansibleCmd.Flags().StringVarP(&module, "module", "m", "shell", "Module to execute")
-	ansibleCmd.Flags().StringVarP(&args, "args", "a", "", "Arguments for the module")
-	ansibleCmd.Flags().IntVarP(&MaxWorkers, "forks", "f", 5, "Max parallel tasks")
-	ansibleCmd.Flags().BoolVarP(&CheckMode, "check", "C", false, "Check mode (dry-run)")
-	ansibleCmd.Flags().BoolVarP(&AggregateOutput, "aggregate", "A", false, "Aggregate identical output")
-	rootCmd.AddCommand(ansibleCmd)
+	remoteCmd.Flags().StringVarP(&InventoryPath, "inventory", "i", "hosts.yaml", "Inventory file")
+	remoteCmd.Flags().StringVarP(&module, "module", "m", "shell", "Module to execute")
+	remoteCmd.Flags().StringVarP(&args, "args", "a", "", "Arguments for the module")
+	remoteCmd.Flags().IntVarP(&MaxWorkers, "forks", "f", 5, "Max parallel tasks")
+	remoteCmd.Flags().BoolVarP(&CheckMode, "check", "C", false, "Check mode (dry-run)")
+	remoteCmd.Flags().BoolVarP(&AggregateOutput, "aggregate", "A", false, "Aggregate identical output")
+	rootCmd.AddCommand(remoteCmd)
 }

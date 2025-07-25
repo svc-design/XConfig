@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.craftweave.cw-agent</string>
+    <string>com.xconfig.cw-agent</string>
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/bin/cw-agent</string>

@@ -1,6 +1,6 @@
-# 🦀 CraftWeave Agent
+# 🦀 Xconfig Agent
 
-CraftWeave Agent (`cw-agent`) 是一个独立运行的本地 Playbook 执行器，支持从 Git 仓库拉取剧本（playbook.yaml），执行本地 shell/script 命令任务。无需 Controller、无需远程 SSH，适用于边缘节点、本地运维任务等场景。
+Xconfig Agent (`cw-agent`) 是一个独立运行的本地 Playbook 执行器，支持从 Git 仓库拉取剧本（playbook.yaml），执行本地 shell/script 命令任务。无需 Controller、无需远程 SSH，适用于边缘节点、本地运维任务等场景。
 
 ---
 
@@ -58,7 +58,7 @@ yaml
 - name: Local Test
   tasks:
     - name: Print hello
-      shell: echo "Hello from CraftWeave Agent"
+      shell: echo "Hello from Xconfig Agent"
 
     - name: Show time
       shell: date

@@ -7,9 +7,8 @@ import (
 
 var pluginCmd = &cobra.Command{
 	Use:   "plugin",
-	Short: "Run or manage CraftWeave plugins",
+	Short: "Run or manage Xconfig plugins",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("[CraftWeave] Plugin system not implemented yet.")
+		fmt.Println("[Xconfig] Plugin system not implemented yet.")
 	},
 }
-

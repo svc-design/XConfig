@@ -1,10 +1,10 @@
 // File: src/scheduler.rs
 
-use crate::{executor, result_store}; 
-use crate::config::{AgentConfig, init_or_update_repo, check_git_updated, pull_latest};
+use crate::config::{check_git_updated, init_or_update_repo, pull_latest, AgentConfig};
 use crate::models::Play;
-use tokio::time::{sleep, Duration};
+use crate::{executor, result_store};
 use std::path::Path;
+use tokio::time::{sleep, Duration};
 
 pub async fn run_schedule(agent_config: &AgentConfig) -> anyhow::Result<()> {
     let repo_dir = "/tmp/cw-agent-sync";
@@ -25,17 +25,13 @@ pub async fn run_schedule(agent_config: &AgentConfig) -> anyhow::Result<()> {
                 let full_path = format!("{}/{}", repo_dir, path);
                 if Path::new(&full_path).exists() {
                     match tokio::fs::read_to_string(&full_path).await {
-                        Ok(content) => {
-                            match serde_yaml::from_str::<Vec<Play>>(&content) {
-                                Ok(parsed) => {
-                                    match executor::run(parsed).await {
-                                        Ok(results) => all_results.extend(results),
-                                        Err(e) => eprintln!("❌ Executor error [{}]: {}", path, e),
-                                    }
-                                }
-                                Err(e) => eprintln!("❌ YAML parse error [{}]: {}", path, e),
-                            }
-                        }
+                        Ok(content) => match serde_yaml::from_str::<Vec<Play>>(&content) {
+                            Ok(parsed) => match executor::run(parsed).await {
+                                Ok(results) => all_results.extend(results),
+                                Err(e) => eprintln!("❌ Executor error [{}]: {}", path, e),
+                            },
+                            Err(e) => eprintln!("❌ YAML parse error [{}]: {}", path, e),
+                        },
                         Err(e) => eprintln!("❌ Failed to read file [{}]: {}", path, e),
                     }
                 } else {

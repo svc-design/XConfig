@@ -1,6 +1,6 @@
 # Module Classification Plan
 
-该文档梳理 CraftWeave 现有目录，规划哪些组件作为核心模块，哪些属于内置模块，以及后续可扩展的模块类型，便于 ansible 与 playbook 两个子命令共同复用。
+该文档梳理 Xconfig 现有目录，规划哪些组件作为核心模块，哪些属于内置模块，以及后续可扩展的模块类型，便于 remote 与 playbook 两个子命令共同复用。
 
 ## 核心模块 (core/)
 
@@ -13,7 +13,7 @@
 
 ## 内置模块 (internal/modules)
 
-开箱即用的任务模块，由 `registry.go` 注册后可直接在 playbook/ansible 中调用：
+开箱即用的任务模块，由 `registry.go` 注册后可直接在 playbook/remote 中调用：
 
 | 模块名   | 说明                     |
 |---------|------------------------|
@@ -29,14 +29,14 @@
 | `set_fact` | 在任务间设置变量              |
 | `fail`/`debug` | 显式失败或调试输出 |
 
-以上模块现已作为内置实现提供，可在 ansible 与 playbook 两个子命令中直接调用。
+以上模块现已作为内置实现提供，可在 remote 与 playbook 两个子命令中直接调用。
 
 ### DeepFlow Agent 角色验证反馈
 
 早期运行 `example/deploy_deepflow_agent` 时会出现 `Unsupported task type` 错误，
 原因是上述模块当时尚未实现。现已将这些常用模块全部纳入内置实现，可直接在
-CraftWeave 中复用以保证与 Ansible Playbook 的兼容性。该角色剧本也被用作回归测
-试，验证 ansible 与 playbook 两种子命令在并发模式下的稳定性。
+Xconfig 中复用以保证与 Ansible Playbook 的兼容性。该角色剧本也被用作回归测
+试，验证 remote 与 playbook 两种子命令在并发模式下的稳定性。
 
 ## 扩展模块
 
@@ -46,4 +46,4 @@ CraftWeave 中复用以保证与 Ansible Playbook 的兼容性。该角色剧本
 - 主机信息收集 `gather_facts`、云平台 API 等。
 - 基于 `plugin` 子命令的第三方扩展或 WASM 模块。
 
-核心与内置模块都由 ansible 与 playbook 子命令共用，扩展模块则按需加载，保持架构灵活。
+核心与内置模块都由 remote 与 playbook 子命令共用，扩展模块则按需加载，保持架构灵活。

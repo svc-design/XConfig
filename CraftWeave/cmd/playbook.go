@@ -15,7 +15,7 @@ var inventoryPath string
 
 var playbookCmd = &cobra.Command{
 	Use:   "playbook [file]",
-	Short: "Run a CraftWeave playbook",
+	Short: "Run a Xconfig playbook",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		file := args[0]

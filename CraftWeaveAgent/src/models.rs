@@ -19,4 +19,3 @@ pub struct Template {
     pub src: String,
     pub dest: String,
 }
-

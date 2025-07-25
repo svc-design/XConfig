@@ -17,7 +17,7 @@ Cargo.lock
 /*.swp
 *.DS_Store
 
-# 📄 CraftWeave Agent local state
+# 📄 Xconfig Agent local state
 /var/lib/cw-agent/
 /status*.json
 *.log

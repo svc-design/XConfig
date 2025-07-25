@@ -1,7 +1,7 @@
 BINARY=cw-agent
 OS := $(shell uname -s)
 SERVICE_PATH=/etc/systemd/system/$(BINARY).service
-PLIST_PATH=~/Library/LaunchAgents/com.craftweave.cw-agent.plist
+PLIST_PATH=~/Library/LaunchAgents/com.xconfig.cw-agent.plist
 BINARY_PATH=/usr/local/bin/$(BINARY)
 
 ifeq ($(OS),Linux)
@@ -80,8 +80,8 @@ install-service: install
 		cp example/$(BINARY).plist $(PLIST_PATH); \
 		launchctl unload $(PLIST_PATH) 2>/dev/null || true; \
 		launchctl load $(PLIST_PATH); \
-		launchctl start com.craftweave.cw-agent; \
-		launchctl list | grep com.craftweave.cw-agent; \
+		launchctl start com.xconfig.cw-agent; \
+		launchctl list | grep com.xconfig.cw-agent; \
 	elif [ "$(OS)" = "Windows_NT" ]; then \
 		echo "⚠️ Windows install-service is not supported via Makefile directly."; \
 		echo "👉 Use 'sc create' or NSSM to install manually."; \
@@ -111,17 +111,17 @@ uninstall-service:
 start-service:
 	@echo "🚀 Starting $(BINARY) service..."
 	@if [ "$(OS)" = "Linux" ]; then sudo systemctl start $(BINARY); fi
-	@if [ "$(OS)" = "Darwin" ]; then launchctl start com.craftweave.cw-agent; fi
+	@if [ "$(OS)" = "Darwin" ]; then launchctl start com.xconfig.cw-agent; fi
 
 stop-service:
 	@echo "🛑 Stopping $(BINARY) service..."
 	@if [ "$(OS)" = "Linux" ]; then sudo systemctl stop $(BINARY); fi
-	@if [ "$(OS)" = "Darwin" ]; then launchctl stop com.craftweave.cw-agent; fi
+	@if [ "$(OS)" = "Darwin" ]; then launchctl stop com.xconfig.cw-agent; fi
 
 restart-service:
 	@echo "♻️ Restarting $(BINARY) service..."
 	@if [ "$(OS)" = "Linux" ]; then sudo systemctl restart $(BINARY); fi
-	@if [ "$(OS)" = "Darwin" ]; then launchctl stop com.craftweave.cw-agent && launchctl start com.craftweave.cw-agent; fi
+	@if [ "$(OS)" = "Darwin" ]; then launchctl stop com.xconfig.cw-agent && launchctl start com.xconfig.cw-agent; fi
 
 logs:
 	@echo "📜 Viewing logs..."

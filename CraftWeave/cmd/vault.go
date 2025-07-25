@@ -9,6 +9,6 @@ var vaultCmd = &cobra.Command{
 	Use:   "vault",
 	Short: "Encrypt/decrypt secrets",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("[CraftWeave] Vault feature is not implemented yet.")
+		fmt.Println("[Xconfig] Vault feature is not implemented yet.")
 	},
 }
