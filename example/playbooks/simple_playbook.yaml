@@ -1,7 +1,7 @@
 - name: Run hostname across all
   hosts: all
   vars:
-    motd: "Welcome from CraftWeave"
+    motd: "Welcome from Xconfig"
   tasks:
     - name: Show hostname
       shell: hostname

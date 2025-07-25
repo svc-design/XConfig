@@ -1,10 +1,10 @@
-# CraftWeave Application Architecture
+# Xconfig Application Architecture
 
 The current implementation focuses on a simple control plane written in Go. Execution happens over SSH by directly running commands on target hosts.
 
 ```
 +-------------+        +-----------------+        +---------------+
-|  craftweave | -----> | SSH connection   | -----> | remote hosts  |
+|  xconfig | -----> | SSH connection   | -----> | remote hosts  |
 |  CLI        |        | (internal/ssh)   |        | (inventory)   |
 +-------------+        +-----------------+        +---------------+
 ```
@@ -16,4 +16,4 @@ The current implementation focuses on a simple control plane written in Go. Exec
 
 The architecture is intentionally minimal to ease future expansion:
 - new modules like `copy` and `command` will live in the executor and SSH helpers.
-- the agent (Rust implementation in `CraftWeaveAgent/`) is planned to run playbooks locally on a schedule.
+- the agent (Rust implementation in `XconfigAgent/`) is planned to run playbooks locally on a schedule.

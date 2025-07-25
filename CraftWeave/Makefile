@@ -40,7 +40,7 @@ clean:
 	rm -f $(APP_NAME)
 
 help:
-	@echo "🧶 CraftWeave CLI Usage"
+	@echo "🧶 Xconfig CLI Usage"
 	@echo ""
 	@echo "make build                编译 craftweave 可执行文件"
 	@echo "make run                  运行默认入口"

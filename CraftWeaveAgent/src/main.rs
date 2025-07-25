@@ -2,19 +2,19 @@
 
 mod config;
 mod executor;
+mod models;
 mod result_store;
 mod scheduler;
-mod models;
 
+use crate::config::{load_agent_config, AgentConfig};
+use crate::executor::run as run_playbook;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use crate::executor::run as run_playbook;
-use crate::config::{load_agent_config, AgentConfig};
 use tokio::fs;
 
 #[derive(Parser, Debug)]
 #[command(name = "cw-agent", version)]
-#[command(about = "CraftWeave Agent - lightweight local playbook runner")]
+#[command(about = "Xconfig Agent - lightweight local playbook runner")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

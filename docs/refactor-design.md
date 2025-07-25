@@ -1,4 +1,4 @@
-# CraftWeave Refactoring Design
+# Xconfig Refactoring Design
 
 This document outlines the architecture introduced in the recent refactor. The goal is to modularise task execution while providing configurable concurrency and logging.
 
@@ -27,7 +27,7 @@ This document outlines the architecture introduced in the recent refactor. The g
 - Conditional execution supported with `when` expressions via `EvaluateWhen`.
 
 ## CLI Changes
-- `ansible` and `playbook` commands share the same registry and executor logic.
+- `remote` and `playbook` commands share the same registry and executor logic.
 - `--forks` flag controls concurrency for both commands.
-- `ansible` runs tasks via `ExecuteTask` with pooled workers and optional logging.
+- `remote` runs tasks via `ExecuteTask` with pooled workers and optional logging.
 

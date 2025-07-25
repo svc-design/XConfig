@@ -19,7 +19,7 @@ This project aims to create a Go-based Ansible-like tool. The initial goal is to
 
 2. **Command-Line Framework**
    - Integrate Cobra as the CLI framework.
-   - Create subcommands for ad-hoc commands (`ansible`) and playbooks (`playbook`).
+   - Create subcommands for ad-hoc commands (`remote`) and playbooks (`playbook`).
    - Add global flags and configuration file support.
 
 3. **Core Modules**
@@ -37,7 +37,7 @@ This project aims to create a Go-based Ansible-like tool. The initial goal is to
    - Add usage instructions to `README.md`.
 
 ## Current Status
-- CLI subcommands `ansible` and `playbook` are functional.
+- CLI subcommands `remote` and `playbook` are functional.
 - Playbooks support the following task types:
   - `shell` – run a remote command via SSH.
   - `script` – upload and execute a local script.

@@ -1,4 +1,4 @@
-# CraftWeave Playbook YAML 语法规范（v0.1）
+# Xconfig Playbook YAML 语法规范（v0.1）
 
 # ✅ 顶层为一个或多个 Play（支持并发）
 # 每个 Play 对应一个 hosts 主机组 + 一组 tasks
@@ -61,7 +61,7 @@
   hosts: all
   tasks:
     - name: Echo message
-      shell: echo Hello from CraftWeave
+      shell: echo Hello from Xconfig
 
     - name: Show OS
       script: ./example/uname.sh
@@ -91,7 +91,7 @@
 # ✅ 合法模块 key：shell, command, script, template, copy, stat, apt, yum, systemd, service, setup, set_fact, fail, debug
 # 🚫 不合法的 key：除上述外都报错（为后续模块保留）
 
-# CraftWeave Playbook 元素定义表格
+# Xconfig Playbook 元素定义表格
 
 | 元素名   | 类型   | 是否必要 | 示例说明                           |
 |----------|--------|----------|------------------------------------|

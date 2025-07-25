@@ -2,11 +2,11 @@
 // -------------------------
 use chrono::Utc;
 use serde::Serialize;
+use std::cmp::Reverse;
 use std::fs;
-use std::path::Path;
 use std::fs::read_dir;
 use std::io::Read;
-use std::cmp::Reverse;
+use std::path::Path;
 
 #[derive(Debug, Serialize)]
 pub struct CommandResult {
@@ -30,11 +30,7 @@ pub async fn print_latest() -> anyhow::Result<()> {
     let path = Path::new("/var/lib/cw-agent");
     let mut entries: Vec<_> = read_dir(path)?
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.file_name()
-                .to_string_lossy()
-                .starts_with("status-")
-        })
+        .filter(|e| e.file_name().to_string_lossy().starts_with("status-"))
         .collect();
 
     entries.sort_by_key(|e| Reverse(e.file_name().to_string_lossy().into_owned()));

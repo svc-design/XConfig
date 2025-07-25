@@ -8,9 +8,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "craftweave",
-	Short: "CraftWeave - 执行与编织任务和架构的现代工具",
-	Long:  `CraftWeave 是一个现代化的 DevOps CLI 工具，融合任务执行、架构编排、拓扑建模与插件生态。`,
+	Use:   "xconfig",
+	Short: "Xconfig - 执行与编织任务和架构的现代工具",
+	Long:  `Xconfig 是一个现代化的 DevOps CLI 工具，融合任务执行、架构编排、拓扑建模与插件生态。`,
 	Run: func(cmd *cobra.Command, args []string) {
 		printBanner()
 	},
@@ -25,7 +25,7 @@ func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
 	// 添加全局子命令
-	rootCmd.AddCommand(ansibleCmd)
+	rootCmd.AddCommand(remoteCmd)
 	rootCmd.AddCommand(playbookCmd)
 	rootCmd.AddCommand(vaultCmd)
 	rootCmd.AddCommand(cmdbCmd)

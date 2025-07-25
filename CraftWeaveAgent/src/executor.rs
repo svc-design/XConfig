@@ -1,10 +1,10 @@
 // File: src/executor.rs
 // ---------------------
 use crate::models::{Play, Task};
-use tokio::fs;
+use crate::result_store::CommandResult;
 use handlebars::Handlebars;
 use serde_json::json;
-use crate::result_store::CommandResult;
+use tokio::fs;
 use tokio::process::Command;
 
 /// 执行单个任务数组（来自 Playbook 的 tasks）
@@ -42,16 +42,9 @@ pub async fn apply(tasks: Vec<Task>) -> anyhow::Result<Vec<CommandResult>> {
         };
 
         let output = if cmd_type == "shell" {
-            Command::new("sh")
-                .arg("-c")
-                .arg(&cmd_str)
-                .output()
-                .await?
+            Command::new("sh").arg("-c").arg(&cmd_str).output().await?
         } else {
-            Command::new("sh")
-                .arg(&cmd_str)
-                .output()
-                .await?
+            Command::new("sh").arg(&cmd_str).output().await?
         };
 
         results.push(CommandResult {
@@ -72,8 +65,13 @@ pub async fn run(playbook: Vec<Play>) -> anyhow::Result<Vec<CommandResult>> {
         println!("🎯 Play: {}", play.name);
         let results = apply(play.tasks).await?;
         for res in &results {
-            println!("▶ {} | rc={}\nstdout: {}\nstderr: {}\n",
-                res.task, res.return_code, res.stdout.trim(), res.stderr.trim());
+            println!(
+                "▶ {} | rc={}\nstdout: {}\nstderr: {}\n",
+                res.task,
+                res.return_code,
+                res.stdout.trim(),
+                res.stderr.trim()
+            );
         }
         all_results.extend(results);
     }
