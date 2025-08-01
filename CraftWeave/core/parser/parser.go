@@ -39,24 +39,42 @@ type MessageAction struct {
 	Msg string `yaml:"msg"`
 }
 
+type DNSZoneAction struct {
+	Provider string `yaml:"provider"`
+	Zone     string `yaml:"zone"`
+	State    string `yaml:"state,omitempty"`
+}
+
+type DNSRecordAction struct {
+	Provider string `yaml:"provider"`
+	Zone     string `yaml:"zone"`
+	Type     string `yaml:"type"`
+	Name     string `yaml:"name"`
+	Value    string `yaml:"value"`
+	TTL      int    `yaml:"ttl,omitempty"`
+	State    string `yaml:"state,omitempty"`
+}
+
 type Task struct {
-	Name     string            `yaml:"name"`
-	When     string            `yaml:"when,omitempty"`
-	Shell    string            `yaml:"shell,omitempty"`
-	Script   string            `yaml:"script,omitempty"`
-	Template *Template         `yaml:"template,omitempty"`
-	Command  string            `yaml:"command,omitempty"`
-	Copy     *Copy             `yaml:"copy,omitempty"`
-	Stat     *Stat             `yaml:"stat,omitempty"`
-	Apt      *PackageAction    `yaml:"apt,omitempty"`
-	Yum      *PackageAction    `yaml:"yum,omitempty"`
-	Systemd  *ServiceAction    `yaml:"systemd,omitempty"`
-	Service  *ServiceAction    `yaml:"service,omitempty"`
-	Setup    bool              `yaml:"setup,omitempty"`
-	SetFact  map[string]string `yaml:"set_fact,omitempty"`
-	Fail     *MessageAction    `yaml:"fail,omitempty"`
-	Debug    *MessageAction    `yaml:"debug,omitempty"`
-	Register string            `yaml:"register,omitempty"`
+	Name      string            `yaml:"name"`
+	When      string            `yaml:"when,omitempty"`
+	Shell     string            `yaml:"shell,omitempty"`
+	Script    string            `yaml:"script,omitempty"`
+	Template  *Template         `yaml:"template,omitempty"`
+	Command   string            `yaml:"command,omitempty"`
+	Copy      *Copy             `yaml:"copy,omitempty"`
+	Stat      *Stat             `yaml:"stat,omitempty"`
+	Apt       *PackageAction    `yaml:"apt,omitempty"`
+	Yum       *PackageAction    `yaml:"yum,omitempty"`
+	Systemd   *ServiceAction    `yaml:"systemd,omitempty"`
+	Service   *ServiceAction    `yaml:"service,omitempty"`
+	DNSZone   *DNSZoneAction    `yaml:"dns_zone,omitempty"`
+	DNSRecord *DNSRecordAction  `yaml:"dns_record,omitempty"`
+	Setup     bool              `yaml:"setup,omitempty"`
+	SetFact   map[string]string `yaml:"set_fact,omitempty"`
+	Fail      *MessageAction    `yaml:"fail,omitempty"`
+	Debug     *MessageAction    `yaml:"debug,omitempty"`
+	Register  string            `yaml:"register,omitempty"`
 }
 
 // Type returns the module name associated with this task.
@@ -82,6 +100,10 @@ func (t Task) Type() string {
 		return "systemd"
 	case t.Service != nil:
 		return "service"
+	case t.DNSZone != nil:
+		return "dns_zone"
+	case t.DNSRecord != nil:
+		return "dns_record"
 	case t.Setup:
 		return "setup"
 	case len(t.SetFact) > 0:
