@@ -6,8 +6,8 @@
 
 ## 🧩 特性概览
 
-### ✅ 控制端（Go 实现）
-- 🛠️ `xconfig remote`：类 Ansible 远程命令执行（内置 shell、command、copy、service 等模块）
+-### ✅ 控制端（Go 实现）
+- 🛠️ `xconfig remote`：类 Ansible 远程命令执行（内置 shell、command、copy、service 等模块，现新增 `dns_zone`、`dns_record`）
 - 📜 `xconfig playbook`：YAML 多步骤任务编排（支持 template、setup、apt/yum 等模块）
 - 🔐 `xconfig vault`：加解密配置 (TODO)
 - 🧠 `xconfig cmdb`：导出拓扑图数据库 (TODO)

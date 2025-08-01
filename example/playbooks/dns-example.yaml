@@ -1,0 +1,14 @@
+- name: Manage DNS
+  hosts: localhost
+  tasks:
+    - name: Ensure zone exists
+      dns_zone:
+        provider: cloudflare
+        zone: example.com
+    - name: Create A record
+      dns_record:
+        provider: cloudflare
+        zone: example.com
+        type: A
+        name: www
+        value: 192.0.2.1
