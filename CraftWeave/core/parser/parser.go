@@ -39,6 +39,15 @@ type MessageAction struct {
 	Msg string `yaml:"msg"`
 }
 
+// VultrInstance defines parameters to create a Vultr cloud instance.
+type VultrInstance struct {
+	APIKey string `yaml:"api_key,omitempty"`
+	Region string `yaml:"region"`
+	Plan   string `yaml:"plan"`
+	OsID   int    `yaml:"os_id"`
+	Label  string `yaml:"label,omitempty"`
+}
+
 type Task struct {
 	Name     string            `yaml:"name"`
 	When     string            `yaml:"when,omitempty"`
@@ -56,6 +65,7 @@ type Task struct {
 	SetFact  map[string]string `yaml:"set_fact,omitempty"`
 	Fail     *MessageAction    `yaml:"fail,omitempty"`
 	Debug    *MessageAction    `yaml:"debug,omitempty"`
+	Vultr    *VultrInstance    `yaml:"vultr,omitempty"`
 	Register string            `yaml:"register,omitempty"`
 }
 
@@ -90,6 +100,8 @@ func (t Task) Type() string {
 		return "fail"
 	case t.Debug != nil:
 		return "debug"
+	case t.Vultr != nil:
+		return "vultr_instance"
 	default:
 		return ""
 	}
